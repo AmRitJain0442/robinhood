@@ -1,6 +1,6 @@
 # Contributing to Robinhood
 
-Robinhood is an early TypeScript terminal application. Start with the [plan](docs/PLAN.md), [architecture](docs/ARCHITECTURE.md), and [runtime decision](docs/decisions/0001-direct-runtime.md). OpenRouter is the first hosted connector; other providers remain on the roadmap.
+Robinhood is an early TypeScript terminal application. Start with the [plan](docs/PLAN.md), [architecture](docs/ARCHITECTURE.md), and [runtime decision](docs/decisions/0001-direct-runtime.md). Implemented connectors and remaining verification are tracked in the [integration ledger](docs/INTEGRATIONS.md).
 
 ## Development
 

@@ -6,12 +6,13 @@ import { homedir } from 'node:os';
 import { realpath, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { OpenRouter } from './providers/openrouter.js';
+import { providers, providerDefinition } from './providers/registry.js';
 import { Runner, type Interaction } from './session.js';
 import { Store } from './storage.js';
 import { Secrets, terminalText } from './privacy.js';
 import { workspaceIdentity } from './tools.js';
 import { demo } from './demo.js';
-import type { Route, Session } from './types.js';
+import type { Connector, Route, Session } from './types.js';
 
 const help = `Robinhood 0.0.1 / developer preview
 
@@ -22,9 +23,9 @@ const help = `Robinhood 0.0.1 / developer preview
 Options: --workspace PATH, --data-dir PATH, --session ID, --help, --version
 
 In the terminal:
-  /connect [openrouter]    Enter an API key without echo; kept in this process only
-  /models                 List currently verified free tool-capable models
-  /use MODEL              Select a model after checking current free pricing
+  /connect PROVIDER       Enter an API key without echo; kept in this process only
+  /models [PROVIDER]      List supported models and their access policy
+  /use [PROVIDER] MODEL   Switch the current session to a connected provider/model
   /providers              Connection and selected route
   /new                    Start a new task with your next message
   /sessions               List saved sessions
@@ -40,8 +41,9 @@ In the terminal:
   /disconnect             Drop this process's provider connection
   /quit                   Save and exit
 
-Only OpenRouter is implemented for hosted inference in this preview.
-Gemini, Groq, account-login agents, and automatic live-provider fallback are pending.
+Providers: ${providers.map(provider => provider.id).join(', ')}.
+Account-dependent routes require explicit confirmation for each request.
+Provider integration does not guarantee free account eligibility or remaining tokens.
 All tool calls require approval. Approved commands have your OS privileges.
 Ctrl+C cancels an active turn; Ctrl+C at the prompt exits. No telemetry.`;
 
@@ -73,9 +75,9 @@ class Terminal {
     if (this.streaming) { process.stdout.write('\n'); this.streaming = false; }
     return Promise.race([this.rl.question(prompt, { signal }), this.ended]);
   }
-  async password(): Promise<string> {
+  async password(name: string): Promise<string> {
     this.line('API key stays in this process; it is never written to the session database.');
-    process.stdout.write('OpenRouter API key (hidden): ');
+    process.stdout.write(`${name} API key (hidden): `);
     this.muted = true;
     try { return (await this.question('')).trim(); }
     finally { this.muted = false; process.stdout.write('\n'); }
@@ -100,7 +102,8 @@ async function main(): Promise<void> {
   const store = new Store(path.join(path.resolve(values['data-dir'] ?? dataPath()), 'sessions.db'));
   const terminal = new Terminal(secrets);
   let current: Session | undefined;
-  let provider: OpenRouter | undefined;
+  const connections = new Map<string, Connector>();
+  let selectedProvider = 'openrouter';
   let routes: Route[] = [];
   let active: AbortController | undefined;
   const interrupt = () => { if (active) active.abort(new Error('Cancelled by user')); else terminal.close(); };
@@ -112,6 +115,10 @@ async function main(): Promise<void> {
       terminal.line(`\nApproval required\n${description}`);
       return (await terminal.question('Allow this operation once? [y/N] ', signal)).trim().toLowerCase() === 'y';
     },
+    approveRequest: async (description, signal) => {
+      terminal.line(`\nAccount access confirmation\n${description}`);
+      return (await terminal.question('Send this one request using this account? [y/N] ', signal)).trim().toLowerCase() === 'y';
+    },
   };
   const load = (id: string) => {
     const session = store.get(id);
@@ -121,11 +128,13 @@ async function main(): Promise<void> {
   };
   const required = (): Session => { if (!current) throw new Error('Start a task or /resume a saved session first.'); return current; };
   try {
-    terminal.line(`\nROBINHOOD / developer preview\nWorkspace: ${workspace}\nFree OpenRouter routes only. /help for commands; /connect to begin.`);
-    if (process.env.OPENROUTER_API_KEY) {
-      secrets.add(process.env.OPENROUTER_API_KEY);
-      provider = new OpenRouter(process.env.OPENROUTER_API_KEY);
-      terminal.line('Loaded OPENROUTER_API_KEY for this process. Use /models, then /use MODEL.');
+    terminal.line(`\nROBINHOOD / developer preview\nWorkspace: ${workspace}\n${providers.length} provider connectors. /providers for access policies; /connect PROVIDER to begin.`);
+    for (const entry of providers) {
+      const key = process.env[entry.env];
+      if (!key) continue;
+      secrets.add(key);
+      connections.set(entry.id, entry.create(key));
+      terminal.line(`Loaded ${entry.env} for this process. ${entry.access}.`);
     }
     if (values.session) load(values.session);
     while (true) {
@@ -138,30 +147,47 @@ async function main(): Promise<void> {
         if (command === '/quit' || command === '/exit') break;
         if (command === '/help') { terminal.line(help); continue; }
         if (command === '/connect') {
-          if (argument && argument !== 'openrouter') throw new Error('This preview implements OpenRouter only. Other providers are on the roadmap.');
-          terminal.line('Your task context and approved tool results will be sent to OpenRouter and its selected model provider.');
-          const key = await terminal.password();
+          const entry = providerDefinition(argument || 'openrouter');
+          terminal.line(`Your task context and approved tool results will be sent to ${entry.name} and any upstream providers it uses. ${entry.access}.`);
+          const key = await terminal.password(entry.name);
           if (!key) throw new Error('No key entered.');
           secrets.add(key);
-          provider = new OpenRouter(key);
+          connections.set(entry.id, entry.create(key));
+          selectedProvider = entry.id;
           routes = [];
           terminal.line('Key loaded. API access will be checked on your first request. Use /models, then /use MODEL.');
           continue;
         }
-        if (command === '/disconnect') { provider = undefined; routes = []; terminal.line('Provider connection dropped. No credentials were stored on disk.'); continue; }
+        if (command === '/disconnect') {
+          const id = argument || selectedProvider;
+          providerDefinition(id);
+          connections.delete(id);
+          routes = routes.filter(route => route.provider !== id);
+          terminal.line(`${id} connection dropped. Other connected providers remain available.`);
+          continue;
+        }
         if (command === '/models') {
-          const models = await (provider ?? new OpenRouter('')).models();
-          terminal.line(models.length ? models.map(model => `${model.id}  (context ${model.context.toLocaleString()})`).join('\n') : 'No eligible free tool-capable models are currently available.');
+          const id = argument || selectedProvider;
+          const entry = providerDefinition(id);
+          const connection = connections.get(id) ?? (id === 'openrouter' ? new OpenRouter('') : undefined);
+          if (!connection) throw new Error(`Use /connect ${id} first.`);
+          const models = await connection.models();
+          terminal.line(`${entry.name}: ${entry.access}\n${models.length ? models.map(model => `${model.id}  (context ${model.context.toLocaleString()})`).join('\n') : 'No supported models are currently available.'}`);
           continue;
         }
         if (command === '/use' || command === '/switch') {
-          if (!provider) throw new Error('Use /connect first.');
-          if (!(await provider.models()).some(model => model.id === argument)) throw new Error('Choose an eligible model ID from /models.');
-          routes = [provider.route(argument)];
-          terminal.line(`Selected ${argument}. Pricing is rechecked before every model request.`);
+          const id = pieces.length > 1 ? pieces[0]! : selectedProvider;
+          const model = pieces.length > 1 ? pieces.slice(1).join(' ') : argument;
+          const entry = providerDefinition(id);
+          const connection = connections.get(id);
+          if (!connection) throw new Error(`Use /connect ${id} first.`);
+          if (!(await connection.models()).some(item => item.id === model)) throw new Error(`Choose a model ID from /models ${id}.`);
+          routes = [connection.route(model)];
+          selectedProvider = id;
+          terminal.line(`Selected ${id}/${model}. ${entry.access}. Saved task history stays in this session.`);
           continue;
         }
-        if (command === '/providers') { terminal.line(`OpenRouter: ${provider ? 'key loaded for this process' : 'not connected'}\nSelected route: ${routes[0]?.id ?? 'none'}\nGemini / Groq / official agent logins: not implemented yet.`); continue; }
+        if (command === '/providers') { terminal.line(`${providers.map(entry => `${entry.id}: ${connections.has(entry.id) ? 'connected' : 'not connected'} — ${entry.access}`).join('\n')}\nSelected route: ${routes[0]?.id ?? 'none'}`); continue; }
         if (command === '/new') { current = undefined; terminal.line('Your next message will start a new saved task.'); continue; }
         if (command === '/sessions') { terminal.line(store.list().map(session => `${session.id}  ${session.objective.slice(0, 80)}\n  ${session.workspace}`).join('\n') || 'No saved sessions.'); continue; }
         if (command === '/resume') { load(argument); continue; }

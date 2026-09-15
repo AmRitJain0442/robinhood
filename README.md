@@ -4,7 +4,7 @@
 
 A local coding terminal with durable task memory, explicit tool approvals, and model routing built around the free access you actually have.
 
-> **Developer preview — 0.0.1.** The terminal and OpenRouter connector are implemented. Gemini, Groq, official agent logins, and automatic switching between live providers are still on the roadmap. Hosted inference has not yet been verified with a real account; the behavioral suite uses local HTTP fixtures.
+> **Developer preview — 0.0.1.** The terminal and connectors in the [integration ledger](docs/INTEGRATIONS.md) are implemented. Provider expansion is in progress; official agent logins and automatic live-provider switching have separate validation gates. Hosted inference has not yet been verified with a real account; the behavioral suite uses local HTTP fixtures.
 
 ## Try the handoff demo
 
@@ -36,22 +36,22 @@ npm start -- --workspace /path/to/your/project
 
 Inside the terminal:
 
-1. Run `/connect` and enter your OpenRouter API key in the hidden prompt. The key stays in this process. `OPENROUTER_API_KEY` is also supported.
-2. Run `/models` to fetch currently free, tool-capable model routes.
-3. Run `/use MODEL_ID`, replacing `MODEL_ID` with an exact ID from that list.
+1. Run `/connect PROVIDER` (for example, `/connect openrouter` or `/connect gemini`) and enter the provider API key in the hidden prompt. The key stays in this process. Provider-specific environment keys are also supported; see the integration ledger.
+2. Run `/models PROVIDER` to list supported models and the provider's access policy.
+3. Run `/use PROVIDER MODEL_ID`, using an exact model ID from that list. Existing task memory stays in the session.
 4. Describe a task. Review and approve each requested tool operation.
 5. Use `/sessions` and `/resume ID` to recover your task in the same workspace after restarting. Reconnect and select a model in the new process.
 
-Pricing is checked before every model request. The connector requires an explicit `:free` route with zero published pricing, disables gateway fallback, and stops if eligibility is unavailable. This does not replace the provider's billing controls or guarantee capacity.
+OpenRouter pricing is checked before every request; only explicit zero-priced `:free` routes qualify automatically. Other connectors may have account-dependent free tiers or credits. Those require explicit confirmation for each request and are not counted as verified free access. See the [access policy](docs/INTEGRATIONS.md#free-access-versus-account-dependent-access).
 
-Your conversation and approved tool results are sent to OpenRouter and the model provider it selects. Local session storage does not make cloud inference private.
+Your conversation and approved tool results are sent to the selected provider and any upstream service it uses. Local session storage does not make cloud inference private.
 
 ## What works today
 
 | Area | Implemented behavior |
 | --- | --- |
 | Terminal | Streaming replies, hidden API-key entry, cancellation, and commands for saved sessions |
-| Hosted connector | OpenRouter free model discovery, pricing checks, tool calling, and explicit manual model selection |
+| Provider connectors | See the [integration ledger](docs/INTEGRATIONS.md) for protocols, access gates, and validation status |
 | Memory | SQLite conversation, objective, usage observations, and durable tool receipts |
 | Tools | List a directory, read a file, create/replace a file with a hash check, and run a bounded approved command |
 | Recovery | Known completed tools stay completed; uncertain crash outcomes block continuation until reconciled |
@@ -64,7 +64,7 @@ The quota display reports observed activity and unknown balances honestly. This 
 
 | Command | Purpose |
 | --- | --- |
-| `/models`, `/use MODEL` | Discover and choose an eligible model |
+| `/models PROVIDER`, `/use PROVIDER MODEL` | Discover models and switch providers without resetting the task |
 | `/providers`, `/status` | Inspect connection and locally observed activity |
 | `/memory` | Inspect the saved objective and conversation |
 | `/sessions`, `/resume ID`, `/new` | Manage tasks |
@@ -90,7 +90,7 @@ The optional [OpenCode feasibility experiment](experiments/opencode/README.md) h
 ## Roadmap
 
 1. Verify the OpenRouter connector against real accounts and selected models.
-2. Add Gemini and Groq with account-specific free-tier eligibility and the same recovery checks.
+2. Expand the provider ledger one integration at a time, with allowance evidence and the same recovery checks.
 3. Add quota grouping, cooldowns, project provider policies, and automatic handoffs between eligible live providers.
 4. Improve context budgeting, editable memory, terminal navigation, and onboarding.
 5. Ship a verified cross-platform release, then add official coding-agent integrations and complementary tools.

@@ -1,10 +1,10 @@
 # Provider roadmap and allowance policy
 
-**Evidence checked:** 2026-09-15. **Implementation status:** the OpenRouter connector is implemented and tested against local HTTP fixtures; public catalog discovery was checked live. Inference with a real account is unverified. Gemini, Groq, and all other integrations below are pending.
+**Research evidence checked:** 2026-09-15. Current implementation and verification status is maintained in the [integration ledger](INTEGRATIONS.md).
 
-This is an engineering shortlist derived from the broader free-access research. An entry means a candidate worth implementing or investigating; it does not imply a working connector or an entitlement available to every user.
+This document is the engineering shortlist and allowance policy. Listing a candidate does not imply a working connector or an entitlement available to every user. Public catalog checks and local HTTP fixtures are distinct from live-account inference.
 
-The current preview uses explicit OpenRouter `:free` models, checks zero pricing and tool support before each request, disables gateway fallback, and stops on quota errors. Manual model switching is available. Automatic switching is demonstrated only with simulated providers so far. See the [README](../README.md) for runnable commands and current limits.
+The terminal can retain multiple provider connections and switch the selected model without resetting task memory. Free-route and account-dependent access are labeled separately. See the [README](../README.md) for commands.
 
 ## Launch: three model APIs
 
@@ -59,7 +59,7 @@ Consumer chat and media web apps with no supported automation interface remain o
 
 ## Free-access policy
 
-The first release has one default policy: **use only configured eligible free access; pause when no eligible route remains.** Paid routing is outside the initial release scope.
+The default automatic policy is **use only verified eligible free access; pause when none remains.** Account-dependent connectors are manual-only and require explicit confirmation of each request, including the possibility of credit consumption or charges. They are never advertised as machine-verified free routes or silently admitted to automatic fallback. See the [implemented access policy](INTEGRATIONS.md#free-access-versus-account-dependent-access).
 
 Eligibility can come from:
 

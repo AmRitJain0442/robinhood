@@ -10,12 +10,12 @@ The current development branch is the only supported version. There is no stable
 
 ## Credentials and project content
 
-- OpenRouter API keys are accepted through a hidden prompt or `OPENROUTER_API_KEY`. Robinhood does not persist them to its database. There is no OS-vault integration yet.
+- Provider API keys are accepted through a hidden prompt or the environment variable listed for that connector. Robinhood does not persist them to its database. There is no OS-vault integration yet.
 - Known keys are redacted from model-visible messages, saved tool results, terminal output, and exports. This is not a general-purpose scanner for every secret in source code.
 - Sessions contain prompts, model responses, tool arguments/results, and workspace paths. They are local but are not encrypted by Robinhood.
 - Default storage is `%LOCALAPPDATA%\Robinhood` on Windows, `~/Library/Application Support/Robinhood` on macOS, or `$XDG_DATA_HOME/robinhood` / `~/.local/share/robinhood` on Linux. `--data-dir` overrides it.
 - Directories created on POSIX use restrictive modes; Windows uses inherited account permissions. Protect the containing directory and your OS account.
-- Cloud inference sends conversation context and approved tool results to OpenRouter and its chosen model provider. Review their data-use terms before using sensitive code.
+- Cloud inference sends conversation context and approved tool results to the selected provider and any upstream provider it uses. Review their data-use terms before using sensitive code.
 - Export files may contain project content. Session deletion removes application records; it does not erase prior exports, OS backups, or every underlying SQLite disk page.
 
 ## Execution boundaries
@@ -30,4 +30,4 @@ If Robinhood cannot establish whether an interrupted command finished, it stops.
 
 The implemented connector checks OpenRouter's catalog before each request and admits only explicit free, tool-capable routes with zero published pricing. It requests no gateway fallback and makes no implicit transport retries. Unknown pricing blocks the request.
 
-Catalog evidence does not guarantee provider capacity, billing correctness, or compatibility with every model. The preview does not enable paid routing or implement a general free-credit balance checker. No model credentials are needed in CI.
+Catalog evidence does not guarantee provider capacity, billing correctness, or compatibility with every model. Account-dependent connectors require explicit approval for each request and may consume credits or incur charges depending on the account. They do not enable silent paid fallback. The preview does not implement a general free-credit balance checker. No model credentials are needed in CI.

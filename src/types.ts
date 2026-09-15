@@ -9,6 +9,8 @@ export interface Message {
   content: string | null;
   tool_calls?: ToolCall[];
   tool_call_id?: string;
+  source?: { provider: string; model: string };
+  providerState?: { provider: string; model: string; parts: Record<string, unknown>[] };
 }
 
 export interface Usage {
@@ -25,8 +27,15 @@ export interface Route {
   id: string;
   provider: string;
   model: string;
+  manualApproval?: string;
   // Must enforce eligibility before every inference request. No implicit retries.
-  complete(messages: Message[], signal: AbortSignal, onText: (text: string) => void): Promise<Completion>;
+  complete(messages: Message[], signal: AbortSignal, onText: (text: string) => void, consent?: { confirmed: boolean }): Promise<Completion>;
+}
+
+export interface ModelInfo { id: string; context: number }
+export interface Connector {
+  models(signal?: AbortSignal): Promise<ModelInfo[]>;
+  route(model: string): Route;
 }
 
 export class RouteError extends Error {

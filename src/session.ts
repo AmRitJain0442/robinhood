@@ -7,6 +7,7 @@ export interface Interaction {
   text(text: string): void;
   status(text: string): void;
   approve(description: string, signal: AbortSignal): Promise<boolean>;
+  approveRequest?(description: string, signal: AbortSignal): Promise<boolean>;
 }
 
 const instructions = `You are Robinhood, a local coding assistant. Keep the user's objective and constraints.
@@ -33,11 +34,16 @@ export class Runner {
       let completion;
       const display = this.secrets.stream(text => ui.text(text));
       try {
+        let confirmed = false;
+        if (route.manualApproval) {
+          confirmed = await ui.approveRequest?.(`${route.id}\n${route.manualApproval}`, signal) ?? false;
+          if (!confirmed) throw new RouteError('Request not sent: account-dependent access was not approved.', 'policy');
+        }
         this.store.event(session.id, 'request-attempt', { route: route.id });
         completion = await route.complete([
           { role: 'system', content: `${instructions}\nTask objective: ${session.objective}` },
           ...this.store.messages(session.id),
-        ], signal, text => { partial += text; display.write(text); });
+        ], signal, text => { partial += text; display.write(text); }, { confirmed });
         display.flush();
       } catch (error) {
         display.flush();
@@ -51,6 +57,7 @@ export class Runner {
         throw error;
       }
       const message = JSON.parse(this.secrets.redact(JSON.stringify(completion.message))) as typeof completion.message;
+      message.source = { provider: route.provider, model: route.model };
       const operations = this.store.prepare(session.id, message, completion.usage);
       if (!operations.length) return;
       for (const op of operations) {

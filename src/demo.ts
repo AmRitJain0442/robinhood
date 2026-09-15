@@ -75,7 +75,7 @@ export async function demo(print: (text: string) => void = console.log): Promise
     await new Runner(store).turn(session, session.objective, fixture.routes, ui, AbortSignal.timeout(20_000));
     assert.equal(await readFile(path.join(workspace, 'handoff-count.txt'), 'utf8'), 'once\n');
     assert.equal(fixture.requests.length, 3);
-    assert.ok(fixture.requests[2]!.messages.some(message => message.role === 'tool'));
+    assert.ok(fixture.requests[2]!.messages.some(message => message.role === 'tool' || message.content?.includes('Historical tool receipt')));
     store.close();
     store = new Store(database);
     assert.equal(store.operations(session.id).filter(op => op.state === 'completed').length, 1);
