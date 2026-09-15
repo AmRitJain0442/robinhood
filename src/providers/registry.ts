@@ -1,3 +1,4 @@
+import { zai } from './specs/zai.js';
 import { sambanova } from './specs/sambanova.js';
 import { cerebras } from './specs/cerebras.js';
 import { inception } from './specs/inception.js';
@@ -18,6 +19,7 @@ export interface ProviderDefinition {
   create(key: string): Connector;
 }
 export const providers: ProviderDefinition[] = [
+  { id: 'zai', name: 'Z.ai', env: 'ZAI_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(zai, key) },
   { id: 'sambanova', name: 'SambaNova', env: 'SAMBANOVA_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(sambanova, key) },
   { id: 'cerebras', name: 'Cerebras', env: 'CEREBRAS_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(cerebras, key) },
   { id: 'inception', name: 'Inception', env: 'INCEPTION_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(inception, key) },
