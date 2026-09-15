@@ -1,5 +1,6 @@
 import { cline } from './specs/cline.js';
 import { vercel } from './specs/vercel.js';
+import { huggingface } from './specs/huggingface.js';
 import { zen } from './specs/zen.js';
 import { zai } from './specs/zai.js';
 import { sambanova } from './specs/sambanova.js';
@@ -22,6 +23,7 @@ export interface ProviderDefinition {
   create(key: string): Connector;
 }
 export const providers: ProviderDefinition[] = [
+  { id: 'huggingface', name: 'Hugging Face', env: 'HF_TOKEN', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(huggingface, key) },
   { id: 'vercel', name: 'Vercel AI Gateway', env: 'AI_GATEWAY_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(vercel, key) },
   { id: 'cline', name: 'Cline API', env: 'CLINE_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(cline, key) },
   { id: 'zen', name: 'OpenCode Zen', env: 'OPENCODE_ZEN_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(zen, key) },

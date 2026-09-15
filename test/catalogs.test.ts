@@ -25,3 +25,31 @@ test('Vercel filters media and unsupported models before inference', async () =>
     assert.equal(posts, 1);
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });
+
+
+test('Hugging Face pins a live tool-capable upstream and blocks it after withdrawal', async () => {
+  const { huggingface } = await import('../src/providers/specs/huggingface.js');
+  let live = true, posts = 0;
+  const server = createServer(async (req, res) => {
+    if (req.method === 'GET') {
+      res.setHeader('content-type', 'application/json');
+      const provider = { provider: 'novita', status: live ? 'live' : 'staging', context_length: 32000, supports_tools: true };
+      res.end(JSON.stringify({ data: [{ id: 'example/model', providers: [provider, { ...provider, provider: 'no-tools', supports_tools: false }] }] })); return;
+    }
+    posts++;
+    let raw = ''; for await (const chunk of req) raw += chunk;
+    assert.equal(JSON.parse(raw).model, 'example/model:novita');
+    res.setHeader('content-type', 'text/event-stream');
+    res.end('data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n');
+  });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  try {
+    const client = new Compatible(huggingface, 'fixture-key', `http://127.0.0.1:${(server.address() as { port: number }).port}`);
+    assert.deepEqual(await client.models(), [{ id: 'example/model:novita', context: 32000 }]);
+    const route = client.route('example/model:novita');
+    await route.complete([], new AbortController().signal, () => {}, { confirmed: true });
+    live = false;
+    await assert.rejects(route.complete([], new AbortController().signal, () => {}, { confirmed: true }), /supported model/);
+    assert.equal(posts, 1);
+  } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
+});

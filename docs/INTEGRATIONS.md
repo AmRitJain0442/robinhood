@@ -17,6 +17,7 @@ Connectors are implemented one at a time and share the same local task journal. 
 | OpenCode Zen | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Cline API | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Vercel AI Gateway | Chat Completions streaming | Account-dependent; confirmation each request | HTTP capability-filter fixtures, public catalog; real-account inference unverified |
+| Hugging Face | Chat Completions streaming | Account-dependent; explicit upstream selection | HTTP catalog-withdrawal fixtures, public catalog; real-account inference unverified |
 
 ## Connecting multiple providers
 
@@ -106,3 +107,9 @@ References: [chat API](https://docs.cline.bot/api/chat-completions), [models](ht
 Connect with `/connect vercel` or `AI_GATEWAY_API_KEY`. Discovers language models explicitly declaring tool support. Gateway upstream selection, monthly credit eligibility and any usage beyond the grant remain account-dependent.
 
 References: [REST API](https://vercel.com/docs/ai-gateway/openai-compat/rest-api), [models](https://vercel.com/docs/ai-gateway/models-and-providers), [pricing](https://vercel.com/docs/ai-gateway/pricing).
+
+## Hugging Face evidence ? checked 2026-09-15
+
+Connect with `/connect huggingface` or `HF_TOKEN`. Models are listed as `organization/model:provider`, pinning a live upstream with declared tools. The token needs Inference Providers permission. Routed monthly credits do not apply to independently billed provider keys; neither a free balance nor shared quota is inferred.
+
+References: [function calling and provider selection](https://huggingface.co/docs/inference-providers/en/guides/function-calling), [pricing](https://huggingface.co/docs/inference-providers/en/pricing), [live catalog](https://router.huggingface.co/v1/models).
