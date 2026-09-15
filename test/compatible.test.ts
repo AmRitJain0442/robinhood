@@ -62,3 +62,30 @@ test('Mistral discovers only active chat models with declared function support',
     assert.equal(posts, 1);
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });
+
+
+test('Kilo anonymous access rechecks prices and never routes to a paid or automatic model', async () => {
+  const { Kilo } = await import('../src/providers/kilo.js');
+  let price = '0', posts = 0;
+  const server = createServer((req, res) => {
+    assert.equal(req.headers.authorization, undefined);
+    if (req.url === '/models') {
+      res.setHeader('content-type', 'application/json');
+      const model = { id: 'example/model:free', isFree: true, pricing: { prompt: price, completion: '0' }, context_length: 32000, supported_parameters: ['tools'] };
+      res.end(JSON.stringify({ data: [model, { ...model, id: 'auto:free', autoRouting: {} }, { ...model, id: 'not-free:free', isFree: false }] })); return;
+    }
+    posts++; res.setHeader('content-type', 'text/event-stream');
+    res.end('data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n');
+  });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  try {
+    const client = new Kilo('', `http://127.0.0.1:${(server.address() as { port: number }).port}`);
+    assert.deepEqual(await client.models(), [{ id: 'example/model:free', context: 32000 }]);
+    const route = client.route('example/model:free');
+    await assert.rejects(route.complete([], new AbortController().signal, () => {}), /approval/);
+    await route.complete([], new AbortController().signal, () => {}, { confirmed: true });
+    price = '0.01';
+    await assert.rejects(route.complete([], new AbortController().signal, () => {}, { confirmed: true }), /zero-priced/);
+    assert.equal(posts, 1);
+  } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
+});

@@ -7,8 +7,9 @@ Connectors are implemented one at a time and share the same local task journal. 
 | OpenRouter | Chat Completions streaming | Live catalog must report an explicit zero-priced `:free` tool-capable route | HTTP fixtures, public catalog, cross-platform CI; real-account inference unverified |
 | Gemini | Native `streamGenerateContent` | Account-dependent; confirmation before every inference request | HTTP fixtures, native tool/signature round-trip, portable history; real-account inference unverified |
 | Groq | Chat Completions streaming | Account-dependent; confirmation before every inference request | HTTP fixtures, Groq token-limit field and usage formats; real-account inference unverified |
-
 | Mistral | Chat Completions streaming | Account-dependent; confirmation before every inference request | HTTP fixtures, capability discovery, native tool IDs; real-account inference unverified |
+
+| Kilo | Chat Completions streaming, optional API key | Live explicit zero-priced routes; confirmation of public-data use | HTTP fixtures and public catalog; inference validation below |
 
 ## Connecting multiple providers
 
@@ -48,3 +49,11 @@ References: [API reference](https://console.groq.com/docs/api-reference), [compa
 Connect with `/connect mistral` or `MISTRAL_API_KEY`. The authenticated catalog must explicitly declare chat and function-calling support; archived models and invalid context sizes are excluded. Trial credit and billing status remain account-dependent.
 
 References: [models API](https://docs.mistral.ai/api/endpoint/models), [chat API](https://docs.mistral.ai/api), [function calling](https://docs.mistral.ai/studio/conversations/function-calling).
+
+## Kilo evidence ? checked 2026-09-15
+
+`/connect kilo` accepts an empty key for documented anonymous access; optionally use `KILO_API_KEY`. Only explicit `:free` model IDs with `isFree: true`, all reported prices zero, and declared tools are exposed. Automatic model selectors are excluded. Pricing is refreshed before every request. Free endpoints may use prompts for improvement; confirmation requires public, non-confidential data. NVIDIA endpoints are trial-only. Anonymous rate ceilings do not guarantee capacity or a daily token grant.
+
+References: [API](https://kilo.ai/docs/gateway/api-reference), [models, free access and data terms](https://kilo.ai/docs/gateway/models-and-providers).
+
+Live anonymous smoke test succeeded on `poolside/laguna-s-2.1:free`: a fixed public prompt returned `OK`, reporting 443 input and 2 output tokens. No workspace data was sent or tools executed. The catalog exposed 16 eligible explicit free tool models at test time. This verifies one route, not all model quality, quota guarantees, or live tool execution.

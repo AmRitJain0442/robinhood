@@ -150,8 +150,8 @@ async function main(): Promise<void> {
           const entry = providerDefinition(argument || 'openrouter');
           terminal.line(`Your task context and approved tool results will be sent to ${entry.name} and any upstream providers it uses. ${entry.access}.`);
           const key = await terminal.password(entry.name);
-          if (!key) throw new Error('No key entered.');
-          secrets.add(key);
+          if (!key && !entry.anonymous) throw new Error('No key entered.');
+          if (key) secrets.add(key);
           connections.set(entry.id, entry.create(key));
           selectedProvider = entry.id;
           routes = [];
