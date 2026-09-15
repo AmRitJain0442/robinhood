@@ -15,6 +15,7 @@ Connectors are implemented one at a time and share the same local task journal. 
 | SambaNova | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Z.ai | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | OpenCode Zen | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
+| Cline API | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 
 ## Connecting multiple providers
 
@@ -92,3 +93,9 @@ References: [quickstart](https://docs.z.ai/guides/overview/quick-start), [GLM 4.
 Connect with `/connect zen` or `OPENCODE_ZEN_API_KEY`. Supports the five documented promotional models served through Chat Completions, with a conservative 64K app budget. Muse Spark Contributor uses Responses and is not exposed by this adapter. The catalog has no price fields, so promotion status remains manual. These are direct Zen API credentials, not an OpenCode process bridge.
 
 References: [models, endpoints, pricing and data terms](https://opencode.ai/docs/zen/), [public catalog](https://opencode.ai/zen/v1/models).
+
+## Cline API evidence ? checked 2026-09-15
+
+Connect with `/connect cline` or `CLINE_API_KEY`. Uses Cline's documented API and reviewed MiniMax chat/tool route with a conservative 64K app budget. The public catalog lacks pricing, so a model label does not authorize automatic free routing. Cline's own CLI agent and its OAuth session are separate integrations.
+
+References: [chat API](https://docs.cline.bot/api/chat-completions), [models](https://docs.cline.bot/api/models).
