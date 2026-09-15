@@ -2,70 +2,106 @@
 
 **Keep the task. Switch the model.**
 
-A planned open-source coding terminal that connects your model providers, keeps project memory locally, and continues a session when an eligible provider runs out of quota.
+A local coding terminal with durable task memory, explicit tool approvals, and model routing built around the free access you actually have.
 
-> **Status: product blueprint / pre-implementation.** This repository currently contains the delivery plan and project foundation. There is no installable Robinhood runtime yet. Features and terminal examples below describe the intended product.
+> **Developer preview — 0.0.1.** The terminal and OpenRouter connector are implemented. Gemini, Groq, official agent logins, and automatic switching between live providers are still on the roadmap. Hosted inference has not yet been verified with a real account; the behavioral suite uses local HTTP fixtures.
 
-## The idea
+## Try the handoff demo
 
-You start fixing a bug with one provider. Its free allowance runs out halfway through. Robinhood checkpoints the work, selects another provider you have approved, and continues with the task, relevant context, and a record of completed commands.
+Requires **Node.js 24.13 or later in the Node 24 series**, npm, and Git.
 
-You should not have to explain the project again or wonder whether the agent just ran the same command twice.
-
-```text
-ROBINHOOD   payments-service                         policy: free access
-
-You       Fix the duplicate invoice bug and run the regression test.
-Agent     Read invoice.ts. Added a guard. Regression test passed.
-System    Current provider reached its request limit.
-          Saved task state and completed tool results.
-          Continuing with your next eligible provider.
-Agent     I'll review the diff and check the remaining edge case.
-
-Provider  Groq / selected model       Allowance: account-specific
-Session   saved                      Tools: approval required
-> _
+```sh
+git clone https://github.com/AmRitJain0442/robinhood.git
+cd robinhood
+npm ci
+npm run demo
 ```
 
-*Illustrative interaction; no live provider calls have been tested by this project yet.*
+The demo creates a disposable workspace and uses **two simulated providers**. It runs one fixed command, injects a quota error, passes the saved tool result to the backup, and reopens the session from SQLite. It needs no account or model tokens. The command is automatically approved only because it is the exact fixed fixture command inside the demo's temporary workspace.
 
-## What we are building first
+```text
+Approved the fixed demo command in its disposable workspace.
+run_command: completed. Receipt … saved.
+Provider request limit reached. Saved state; switching to simulated-backup.
+The saved command receipt is in context. The command ran once; I will not repeat it.
+PASS: quota handoff preserved the tool result; one command execution; session reopened from SQLite.
+```
 
-- **One terminal session:** streaming conversation, tool activity, diffs, and recovery in one place.
-- **Shared project memory:** the objective, constraints, relevant files, decisions, and completed work survive provider changes.
-- **Three provider integrations:** OpenRouter, Gemini API, and Groq, subject to the feasibility checks in the plan.
-- **Visible allowance tracking:** requests, tokens, credits, and reset windows shown in their actual units; unknown balances stay unknown.
-- **Predictable switching:** manual selection first, then automatic handoff at a verified safe boundary.
-- **Local ownership:** project data on your machine, supported authentication, explicit tool permissions, and exportable sessions.
+## Use the terminal
 
-Free access belongs to your provider accounts. Robinhood will not manufacture credits or turn consumer chat access into an API entitlement. Its default routing policy will admit only configured eligible routes and stop when none remain. Provider pricing and account settings remain authoritative; see the [provider policy](docs/PROVIDERS.md).
+```sh
+npm run build
+npm start -- --workspace /path/to/your/project
+```
 
-## Build plan
+Inside the terminal:
+
+1. Run `/connect` and enter your OpenRouter API key in the hidden prompt. The key stays in this process. `OPENROUTER_API_KEY` is also supported.
+2. Run `/models` to fetch currently free, tool-capable model routes.
+3. Run `/use MODEL_ID`, replacing `MODEL_ID` with an exact ID from that list.
+4. Describe a task. Review and approve each requested tool operation.
+5. Use `/sessions` and `/resume ID` to recover your task in the same workspace after restarting. Reconnect and select a model in the new process.
+
+Pricing is checked before every model request. The connector requires an explicit `:free` route with zero published pricing, disables gateway fallback, and stops if eligibility is unavailable. This does not replace the provider's billing controls or guarantee capacity.
+
+Your conversation and approved tool results are sent to OpenRouter and the model provider it selects. Local session storage does not make cloud inference private.
+
+## What works today
+
+| Area | Implemented behavior |
+| --- | --- |
+| Terminal | Streaming replies, hidden API-key entry, cancellation, and commands for saved sessions |
+| Hosted connector | OpenRouter free model discovery, pricing checks, tool calling, and explicit manual model selection |
+| Memory | SQLite conversation, objective, usage observations, and durable tool receipts |
+| Tools | List a directory, read a file, create/replace a file with a hash check, and run a bounded approved command |
+| Recovery | Known completed tools stay completed; uncertain crash outcomes block continuation until reconciled |
+| Portability | Source installation; automated tests configured for Windows, macOS, and Linux |
+| Handoff | Tested with simulated providers; automatic live-provider fallback is pending |
+
+The quota display reports observed activity and unknown balances honestly. This preview does not calculate a universal daily token pool or automatically compact long sessions. Model-specific compatibility still needs real-account verification.
+
+## Useful commands
+
+| Command | Purpose |
+| --- | --- |
+| `/models`, `/use MODEL` | Discover and choose an eligible model |
+| `/providers`, `/status` | Inspect connection and locally observed activity |
+| `/memory` | Inspect the saved objective and conversation |
+| `/sessions`, `/resume ID`, `/new` | Manage tasks |
+| `/continue` | Continue from saved state |
+| `/pending`, `/resolve ID NOTE` | Reconcile an uncertain tool outcome after checking what happened |
+| `/reconcile` | Accept a changed checkout after reviewing the workspace |
+| `/export PATH`, `/delete` | Export or delete a saved session |
+| `/disconnect`, `/quit`, `/help` | Disconnect, exit, or show all commands |
+
+Approved commands run with your OS privileges; permission prompts are not a sandbox. Credential paths are excluded from file tools, but arbitrary approved shell commands still have normal filesystem access. See [security and local data](SECURITY.md).
+
+## Development
+
+```sh
+npm ci
+npm run check
+```
+
+The suite covers HTTP streaming, changing prices, rate-limit handling, permission denial, file conflicts, path escapes, process cancellation, secret redaction, and a real process crash after a side effect but before saving its receipt. Ordinary tests use local fixtures and never require model credentials.
+
+The optional [OpenCode feasibility experiment](experiments/opencode/README.md) has separate dependencies and is not used by the application. The experiment informed the [runtime decision](docs/decisions/0001-direct-runtime.md).
+
+## Roadmap
+
+1. Verify the OpenRouter connector against real accounts and selected models.
+2. Add Gemini and Groq with account-specific free-tier eligibility and the same recovery checks.
+3. Add quota grouping, cooldowns, project provider policies, and automatic handoffs between eligible live providers.
+4. Improve context budgeting, editable memory, terminal navigation, and onboarding.
+5. Ship a verified cross-platform release, then add official coding-agent integrations and complementary tools.
 
 | Document | Purpose |
 | --- | --- |
-| [End-to-end plan](docs/PLAN.md) | Scope, milestones, acceptance criteria, release process, and first implementation tasks |
-| [Architecture](docs/ARCHITECTURE.md) | Runtime decision, local memory, routing, tool execution, and recovery |
-| [Provider roadmap](docs/PROVIDERS.md) | Integration order, allowance semantics, authentication, and source evidence |
-| [Contributing](CONTRIBUTING.md) | How to help now and what future implementation changes must demonstrate |
-
-The first engineering milestone evaluates reusing OpenCode's supported runtime. We will choose one execution engine after that experiment. The product's core work is reliable continuity and allowance-aware routing; the [decision gate](docs/ARCHITECTURE.md#runtime-decision) defines what reuse must prove.
-
-## Release path
-
-1. **Prove the foundation:** engine integration, supported authentication, and Windows behavior.
-2. **Complete one task:** one provider, controlled tools, persistence, and restart.
-3. **Preserve work across providers:** manual switch, then safe automatic handoff.
-4. **Ship a usable alpha:** onboarding, quota explanations, cancellation, and recovery.
-5. **Earn a stable release:** reproducible failure tests, cross-platform packaging, and real user feedback.
-6. **Expand deliberately:** more model APIs, selected official coding-agent integrations, then complementary tools.
-
-## Contribute
-
-The most useful contributions right now are critiques of the [runtime decision](docs/ARCHITECTURE.md#runtime-decision), reproducible provider evidence, and small improvements to the implementation plan. Start with [CONTRIBUTING.md](CONTRIBUTING.md).
-
-Implementation has not started, so there are no build commands or test results to advertise yet. Future releases must include a working demo and installation instructions that have been checked from a clean machine.
+| [End-to-end plan](docs/PLAN.md) | Milestones, scope, acceptance criteria, and release gates |
+| [Architecture](docs/ARCHITECTURE.md) | Runtime, persistence, routing, and tool boundaries |
+| [Provider roadmap](docs/PROVIDERS.md) | Integration order and allowance semantics |
+| [Contributing](CONTRIBUTING.md) | Development workflow and provider evidence requirements |
 
 ## License
 
-[MIT](LICENSE). Independent community project; provider names identify planned integrations. Robinhood is the working project name and is not affiliated with the brokerage or the providers listed here.
+[MIT](LICENSE). Independent community project. Robinhood is the working project name and is not affiliated with the brokerage or the providers listed here.

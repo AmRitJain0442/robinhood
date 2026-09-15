@@ -1,8 +1,10 @@
 # Provider roadmap and allowance policy
 
-**Evidence checked:** 2026-09-15. **Implementation status:** no Robinhood provider integration has been built or live-tested yet.
+**Evidence checked:** 2026-09-15. **Implementation status:** the OpenRouter connector is implemented and tested against local HTTP fixtures; public catalog discovery was checked live. Inference with a real account is unverified. Gemini, Groq, and all other integrations below are pending.
 
 This is an engineering shortlist derived from the broader free-access research. An entry means a candidate worth implementing or investigating; it does not imply a working connector or an entitlement available to every user.
+
+The current preview uses explicit OpenRouter `:free` models, checks zero pricing and tool support before each request, disables gateway fallback, and stops on quota errors. Manual model switching is available. Automatic switching is demonstrated only with simulated providers so far. See the [README](../README.md) for runnable commands and current limits.
 
 ## Launch: three model APIs
 

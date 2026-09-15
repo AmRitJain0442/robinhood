@@ -1,8 +1,18 @@
 # Robinhood: end-to-end delivery plan
 
 - **Plan date:** 2026-09-15
-- **Stage:** approved direction; implementation pending
+- **Stage:** first developer preview implemented; broader release gates remain open
 - **Initial maintainer:** [AmRitJain0442](https://github.com/AmRitJain0442)
+
+## Implementation snapshot — 2026-09-15
+
+- **M0 complete:** public repository and product foundation.
+- **M1 runtime decision complete:** tested pinned OpenCode on native Windows and chose the [direct request runtime](decisions/0001-direct-runtime.md). Real-account and remaining platform/provider feasibility checks are still pending.
+- **M2 first slice implemented:** interactive terminal, OpenRouter connector, streaming replies, approved tools, SQLite persistence, export/delete, and uncertain-outcome recovery. Real-account inference is not yet verified.
+- **Handoff mechanism tested with fixtures:** simulated quota exhaustion preserves a completed tool receipt. This does not complete M3/M4 or establish live multi-provider support.
+- **Pending:** Gemini/Groq, account-specific allowance groups and cooldowns, long-context compaction, richer UI, real-account validation, and release hardening.
+
+The milestones below remain the end-to-end target. An implemented preview feature does not imply its beta/release gates are complete.
 
 ## 1. Product outcome
 
@@ -234,4 +244,4 @@ Use fake provider streams and disposable repositories for repeatable failure tes
 6. **Three-provider manual switch:** selected models, capability checks, and a reproducible handoff example.
 7. **Quota-driven continuation:** native-unit ledger, deterministic routing, cooldowns, and failure-injection tests.
 
-The next commit should start item 1. Building an attractive shell around unverified handoff behavior does not satisfy the first milestone.
+Items 1-3 now have an experiment and a recorded decision. The initial portions of items 4-5 are implemented in the developer preview. Next: real-account OpenRouter verification, Gemini/Groq eligibility and adapters, then shared quota/cooldown handling before enabling automatic live-provider handoff.

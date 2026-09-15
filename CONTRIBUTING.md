@@ -1,10 +1,22 @@
 # Contributing to Robinhood
 
-Robinhood is currently a product blueprint. Start with the [plan](docs/PLAN.md) and [architecture](docs/ARCHITECTURE.md). Runtime implementation begins with the feasibility experiment, not with dozens of provider connectors.
+Robinhood is an early TypeScript terminal application. Start with the [plan](docs/PLAN.md), [architecture](docs/ARCHITECTURE.md), and [runtime decision](docs/decisions/0001-direct-runtime.md). OpenRouter is the first hosted connector; other providers remain on the roadmap.
+
+## Development
+
+Use Node 24.13 or newer in the Node 24 series:
+
+```sh
+npm ci
+npm run check
+npm run demo
+```
+
+Normal tests and the demo use local fixtures, require no credentials, and do not consume model quota. The demo retains its temporary workspace for inspection. The optional OpenCode experiment has its own package and instructions under [experiments/opencode](experiments/opencode/README.md).
 
 ## Useful contributions now
 
-- Reproduce an engine behavior needed by the runtime decision and document the result.
+- Verify an implemented provider/model against a real account using a small, non-sensitive task, and document the actual result.
 - Improve an acceptance criterion with a concrete failure case.
 - Supply dated official evidence for a provider's interface, allowance, or retirement.
 - Find an ambiguity in memory ownership, tool recovery, account eligibility, or the user experience.
@@ -15,9 +27,9 @@ For a large change, open an issue describing the user problem, proposed scope, a
 
 Explain what changes, why it matters, and how it was checked. Distinguish proposed behavior from working behavior. Do not claim a provider is supported just because its endpoint resembles another provider's API.
 
-For documentation, verify local links, current official sources for provider claims, and clear status labels. There is no application build or test command yet. Do not add empty test suites or generated scaffolding to make the repository look implemented.
+For documentation, verify local links, current official sources for provider claims, and clear status labels. Distinguish local HTTP fixture coverage from real-account inference and model-quality checks.
 
-When code begins, every PR should pass the checks introduced with that code. Recovery, routing, permissions, and persistence changes need meaningful behavioral tests. Normal CI must use fixtures and must not require a contributor's model credentials or paid API calls.
+Every code PR should pass `npm run check`. Recovery, routing, permissions, and persistence changes need meaningful behavioral tests. Normal CI must use fixtures and must not require a contributor's model credentials or paid API calls.
 
 For a provider integration, follow the [acceptance checklist](docs/PROVIDERS.md#acceptance-checklist-for-a-provider). Add one integration at a time and include failure behavior, not just a successful completion.
 

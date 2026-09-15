@@ -1,0 +1,10 @@
+{
+  "name": "robinhood-opencode-feasibility",
+  "private": true,
+  "type": "module",
+  "scripts": { "probe": "node probe.mjs" },
+  "devDependencies": {
+    "@opencode-ai/sdk": "1.18.31",
+    "opencode-ai": "1.18.31"
+  }
+}

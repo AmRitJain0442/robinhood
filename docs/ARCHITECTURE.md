@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** proposed design; the runtime choice is gated by M1 in the [delivery plan](PLAN.md). Requirements below describe what implementation must prove.
+**Status:** the [runtime decision](decisions/0001-direct-runtime.md) selects a direct TypeScript request loop. A first OpenRouter slice is implemented. This document also describes the broader target architecture; unimplemented provider policies, context compaction, and richer UI remain in the [delivery plan](PLAN.md).
 
 ## System shape
 
@@ -19,9 +19,13 @@ flowchart TD
     E -->|Messages, usage, tool receipts| C
 ```
 
-These are code boundaries, not separate microservices. The engine may be a managed local OpenCode subprocess if the reuse experiment passes.
+These are code boundaries, not separate microservices. The application executes its own small request/tool loop; OpenCode is used only by the isolated feasibility experiment.
 
 ## Runtime decision
+
+**Resolved:** use the direct API runtime. The OpenCode experiment passed permission, manual handoff, tool-receipt, and restart checks, but also observed engine-level retries beyond the provider's `maxRetries: 0` setting. Keeping a synchronous policy gate and a single durable execution journal is simpler for this product. See [decision 0001](decisions/0001-direct-runtime.md) for results and limitations.
+
+The original evaluation criteria below explain how that decision was made; they are not a second runtime under development.
 
 **Preferred experiment:** a thin Robinhood coordinator around a pinned OpenCode server and its supported TypeScript SDK. The SDK documents session messages, per-prompt model selection, permissions, cancellation, and event subscriptions. That makes reuse worth testing; it does not establish the recovery guarantees this product needs. [OpenCode SDK](https://opencode.ai/docs/sdk/), [server interface](https://opencode.ai/docs/server/).
 
@@ -44,10 +48,10 @@ OpenCode documents API-key storage in a local `auth.json` file. An OS vault in R
 | Area | Starting choice | Reason / gate |
 | --- | --- | --- |
 | Application | TypeScript, Node.js 24 LTS | One language for coordinator, adapters, tests, and UI; validate supported engine requirements in M1 |
-| Terminal | React with Ink | Interactive terminal components; keep business logic outside rendering |
+| Terminal | Node readline for the first slice; Ink deferred | Streaming interactive commands now; richer terminal rendering follows workflow validation |
 | Local persistence | SQLite with a small typed data-access layer | Transactions for checkpoints and receipts; no database server |
-| SQLite binding | Evaluate `better-sqlite3` in M1 | Check native packaging on the target OS matrix before committing to the binding |
-| Credentials | OS credential storage; session-only fallback | Select a maintained implementation after verifying Windows/macOS/Linux behavior |
+| SQLite binding | Pinned `better-sqlite3` | Windows installed and tested locally; CI checks the remaining OS matrix |
+| Credentials | Process-only prompt or environment variable | No persisted key copies; OS-vault integration is deferred |
 | Tests | Small unit tests plus provider fixtures and process-level scenarios | Reproduce failures without remote accounts |
 | Distribution | One npm package and CLI entry point initially | Check naming and clean installation before publishing |
 
@@ -57,7 +61,7 @@ Technology references checked for this plan: [Node release schedule](https://nod
 
 Robinhood's local store is authoritative for task identity, explicit user constraints, project policy, normalized visible conversation, tool receipts, and checkpoints. Keep an append-only sequence of relevant events plus small current-state tables. This is a local execution journal, not a distributed event platform.
 
-An engine thread is an execution resource referenced by ID. Import its supported visible message and tool records into the Robinhood journal with stable source IDs so reconnect can deduplicate them. Engine-owned transcripts are retained for reconciliation, but they must not independently overwrite Robinhood task decisions. Keep raw provider envelopes only when needed to preserve valid continuation; exclude credentials and internal reasoning from portable memory.
+The selected runtime has no second engine transcript. It stores normalized messages and tool-call IDs directly in Robinhood's database. Any future official-agent integration must define its separate thread ownership and import/export behavior before joining this model. Exclude credentials and internal reasoning from portable memory.
 
 Minimal stored concepts:
 
@@ -71,7 +75,7 @@ A context packet contains the objective, user constraints, concise decisions, re
 
 Use deterministic trimming and task facts before adding model-generated summaries. If a summary needs a model call, route it through the same eligibility gate and record its usage. Reserve space for tools and output; tokenizer estimates are conservative and labeled. Never assume two providers count tokens identically.
 
-No vector database or embeddings in v0.1. Add SQLite text search only when simple recent-context selection becomes insufficient. Cross-session project memory is explicit and editable; do not silently mix unrelated repositories.
+The current preview retains the visible conversation and objective and rejects requests beyond a conservative context budget; automatic compaction and editable pinned memory are pending. No vector database or embeddings in v0.1. Add SQLite text search only when simple recent-context selection becomes insufficient. Future cross-session project memory must be explicit and editable; do not silently mix unrelated repositories.
 
 ## Routing and allowances
 
