@@ -11,6 +11,7 @@ Connectors are implemented one at a time and share the same local task journal. 
 
 | Kilo | Chat Completions streaming, optional API key | Live explicit zero-priced routes; confirmation of public-data use | HTTP fixtures and public catalog; inference validation below |
 | Inception | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
+| Cerebras | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 
 ## Connecting multiple providers
 
@@ -64,3 +65,9 @@ Live anonymous smoke test succeeded on `poolside/laguna-s-2.1:free`: a fixed pub
 Connect with `/connect inception` or `INCEPTION_API_KEY`. Uses the Mercury chat models and the completion-token limit. Edit/FIM models are excluded because they lack the agent tool interface. Signup credits are not a recurring daily grant.
 
 References: [models and endpoints](https://docs.inceptionlabs.ai/get-started/models), [chat API](https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion).
+
+## Cerebras evidence ? checked 2026-09-15
+
+Connect with `/connect cerebras` or `CEREBRAS_API_KEY`. Uses the smaller published trial context limits and rechecks model availability. Trial balance and account rate limits remain unverified; older daily-token claims are not used.
+
+References: [quickstart](https://inference-docs.cerebras.ai/quickstart), [model catalog](https://inference-docs.cerebras.ai/models/overview), [chat API](https://inference-docs.cerebras.ai/api-reference/chat-completions).

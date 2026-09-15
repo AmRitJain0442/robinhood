@@ -1,3 +1,4 @@
+import { cerebras } from './specs/cerebras.js';
 import { inception } from './specs/inception.js';
 import type { Connector } from '../types.js';
 import { OpenRouter } from './openrouter.js';
@@ -16,6 +17,7 @@ export interface ProviderDefinition {
   create(key: string): Connector;
 }
 export const providers: ProviderDefinition[] = [
+  { id: 'cerebras', name: 'Cerebras', env: 'CEREBRAS_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(cerebras, key) },
   { id: 'inception', name: 'Inception', env: 'INCEPTION_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(inception, key) },
   { id: 'kilo', name: 'Kilo (blank key for anonymous access)', env: 'KILO_API_KEY', anonymous: true, access: 'Verified zero-priced routes; public-data confirmation', create: key => new Kilo(key) },
   { id: 'openrouter', name: 'OpenRouter', env: 'OPENROUTER_API_KEY', access: 'Verified zero-priced model routes', create: key => new OpenRouter(key) },
