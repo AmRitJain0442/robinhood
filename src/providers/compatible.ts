@@ -9,6 +9,7 @@ export interface CompatibleSpec {
   name: string;
   baseURL: string;
   models: ModelInfo[];
+  discoverModels?: (data: unknown[]) => ModelInfo[];
   modelsPath?: string | null;
   completionPath?: string;
   maxTokenField?: 'max_tokens' | 'max_completion_tokens';
@@ -32,6 +33,7 @@ export class Compatible implements Connector {
     if (!response.ok) { await response.body?.cancel(); throw statusError(response.status, response.headers.get('retry-after')); }
     const data = object(await response.json()).data;
     if (!Array.isArray(data)) throw new RouteError(`${this.spec.name} returned a malformed model catalog.`, 'protocol');
+    if (this.spec.discoverModels) return this.spec.discoverModels(data);
     const available = new Set(data.filter(item => object(item).active !== false).map(item => object(item).id));
     return this.spec.models.filter(model => available.has(model.id));
   }

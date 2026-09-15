@@ -8,6 +8,8 @@ Connectors are implemented one at a time and share the same local task journal. 
 | Gemini | Native `streamGenerateContent` | Account-dependent; confirmation before every inference request | HTTP fixtures, native tool/signature round-trip, portable history; real-account inference unverified |
 | Groq | Chat Completions streaming | Account-dependent; confirmation before every inference request | HTTP fixtures, Groq token-limit field and usage formats; real-account inference unverified |
 
+| Mistral | Chat Completions streaming | Account-dependent; confirmation before every inference request | HTTP fixtures, capability discovery, native tool IDs; real-account inference unverified |
+
 ## Connecting multiple providers
 
 ```text
@@ -40,3 +42,9 @@ The connector does not enable built-in web search, code execution, media generat
 Connect with `/connect groq` or `GROQ_API_KEY`, then `/models groq` and `/use groq MODEL`. The connector intersects its reviewed tool-capable models with the authenticated model catalog, uses `max_completion_tokens`, and handles both standard usage and Groq's usage metadata. It does not enable Compound's server-side tools. Published model rate ceilings are not added together as independent daily grants.
 
 References: [API reference](https://console.groq.com/docs/api-reference), [compatibility](https://console.groq.com/docs/openai), [tool use](https://console.groq.com/docs/tool-use/overview), [rate limits](https://console.groq.com/docs/rate-limits).
+
+## Mistral evidence ? checked 2026-09-15
+
+Connect with `/connect mistral` or `MISTRAL_API_KEY`. The authenticated catalog must explicitly declare chat and function-calling support; archived models and invalid context sizes are excluded. Trial credit and billing status remain account-dependent.
+
+References: [models API](https://docs.mistral.ai/api/endpoint/models), [chat API](https://docs.mistral.ai/api), [function calling](https://docs.mistral.ai/studio/conversations/function-calling).
