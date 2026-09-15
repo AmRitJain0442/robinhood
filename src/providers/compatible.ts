@@ -16,6 +16,7 @@ export interface CompatibleSpec {
   headers?: Record<string, string>;
   keyHeader?: string;
   extraBody?: Record<string, unknown>;
+  notice?: string;
 }
 
 // Shared only where the provider documents Chat Completions compatibility.
@@ -39,7 +40,7 @@ export class Compatible implements Connector {
   }
   route(model: string): Route {
     return { id: `${this.spec.id}/${model}`, provider: this.spec.id, model,
-      manualApproval: `${this.spec.name} account tier, trial credits, and remaining free allowance are not machine-verified. This request may consume credits or incur charges.`,
+      manualApproval: `${this.spec.name} account tier, trial credits, and remaining free allowance are not machine-verified. This request may consume credits or incur charges.${this.spec.notice ? ` ${this.spec.notice}` : ''}`,
       complete: async (messages, signal, onText, consent) => {
         manualConsent(consent);
         const selected = (await this.models(AbortSignal.any([signal, AbortSignal.timeout(15_000)]))).find(item => item.id === model);

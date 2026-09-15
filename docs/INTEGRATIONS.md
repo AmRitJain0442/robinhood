@@ -10,6 +10,7 @@ Connectors are implemented one at a time and share the same local task journal. 
 | Mistral | Chat Completions streaming | Account-dependent; confirmation before every inference request | HTTP fixtures, capability discovery, native tool IDs; real-account inference unverified |
 
 | Kilo | Chat Completions streaming, optional API key | Live explicit zero-priced routes; confirmation of public-data use | HTTP fixtures and public catalog; inference validation below |
+| Inception | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 
 ## Connecting multiple providers
 
@@ -57,3 +58,9 @@ References: [models API](https://docs.mistral.ai/api/endpoint/models), [chat API
 References: [API](https://kilo.ai/docs/gateway/api-reference), [models, free access and data terms](https://kilo.ai/docs/gateway/models-and-providers).
 
 Live anonymous smoke test succeeded on `poolside/laguna-s-2.1:free`: a fixed public prompt returned `OK`, reporting 443 input and 2 output tokens. No workspace data was sent or tools executed. The catalog exposed 16 eligible explicit free tool models at test time. This verifies one route, not all model quality, quota guarantees, or live tool execution.
+
+## Inception evidence ? checked 2026-09-15
+
+Connect with `/connect inception` or `INCEPTION_API_KEY`. Uses the Mercury chat models and the completion-token limit. Edit/FIM models are excluded because they lack the agent tool interface. Signup credits are not a recurring daily grant.
+
+References: [models and endpoints](https://docs.inceptionlabs.ai/get-started/models), [chat API](https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion).
