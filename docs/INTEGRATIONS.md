@@ -16,6 +16,7 @@ Connectors are implemented one at a time and share the same local task journal. 
 | Z.ai | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | OpenCode Zen | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Cline API | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
+| Vercel AI Gateway | Chat Completions streaming | Account-dependent; confirmation each request | HTTP capability-filter fixtures, public catalog; real-account inference unverified |
 
 ## Connecting multiple providers
 
@@ -99,3 +100,9 @@ References: [models, endpoints, pricing and data terms](https://opencode.ai/docs
 Connect with `/connect cline` or `CLINE_API_KEY`. Uses Cline's documented API and reviewed MiniMax chat/tool route with a conservative 64K app budget. The public catalog lacks pricing, so a model label does not authorize automatic free routing. Cline's own CLI agent and its OAuth session are separate integrations.
 
 References: [chat API](https://docs.cline.bot/api/chat-completions), [models](https://docs.cline.bot/api/models).
+
+## Vercel evidence ? checked 2026-09-15
+
+Connect with `/connect vercel` or `AI_GATEWAY_API_KEY`. Discovers language models explicitly declaring tool support. Gateway upstream selection, monthly credit eligibility and any usage beyond the grant remain account-dependent.
+
+References: [REST API](https://vercel.com/docs/ai-gateway/openai-compat/rest-api), [models](https://vercel.com/docs/ai-gateway/models-and-providers), [pricing](https://vercel.com/docs/ai-gateway/pricing).
