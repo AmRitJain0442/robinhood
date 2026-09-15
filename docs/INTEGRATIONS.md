@@ -12,6 +12,7 @@ Connectors are implemented one at a time and share the same local task journal. 
 | Kilo | Chat Completions streaming, optional API key | Live explicit zero-priced routes; confirmation of public-data use | HTTP fixtures and public catalog; inference validation below |
 | Inception | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Cerebras | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
+| SambaNova | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 
 ## Connecting multiple providers
 
@@ -71,3 +72,9 @@ References: [models and endpoints](https://docs.inceptionlabs.ai/get-started/mod
 Connect with `/connect cerebras` or `CEREBRAS_API_KEY`. Uses the smaller published trial context limits and rechecks model availability. Trial balance and account rate limits remain unverified; older daily-token claims are not used.
 
 References: [quickstart](https://inference-docs.cerebras.ai/quickstart), [model catalog](https://inference-docs.cerebras.ai/models/overview), [chat API](https://inference-docs.cerebras.ai/api-reference/chat-completions).
+
+## SambaNova evidence ? checked 2026-09-15
+
+Connect with `/connect sambanova` or `SAMBANOVA_API_KEY`. Uses reviewed production tool models and requests streaming usage. Preview and dedicated deployment models are excluded. Model-specific ceilings are not summed into a guaranteed account allowance.
+
+References: [function calling](https://docs.sambanova.ai/docs/en/features/function-calling), [model catalog](https://docs.sambanova.ai/docs/en/models/sambacloud-models), [endpoint](https://docs.sambanova.ai/docs/en/integrations/make).
