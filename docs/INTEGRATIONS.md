@@ -14,6 +14,7 @@ Connectors are implemented one at a time and share the same local task journal. 
 | Cerebras | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | SambaNova | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Z.ai | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
+| OpenCode Zen | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 
 ## Connecting multiple providers
 
@@ -85,3 +86,9 @@ References: [function calling](https://docs.sambanova.ai/docs/en/features/functi
 Connect with `/connect zai` or `ZAI_API_KEY`. Uses the standard API with the reviewed Flash variants, not the paid Coding Plan endpoint. Thinking is disabled so tool continuation does not depend on reasoning replay. Model IDs come from documentation; this adapter does not claim account catalog discovery. Free promotional pricing is not machine-verified.
 
 References: [quickstart](https://docs.z.ai/guides/overview/quick-start), [GLM 4.7 variants](https://docs.z.ai/guides/llm/glm-4.7), [chat API](https://docs.z.ai/api-reference/llm/chat-completion).
+
+## OpenCode Zen evidence ? checked 2026-09-15
+
+Connect with `/connect zen` or `OPENCODE_ZEN_API_KEY`. Supports the five documented promotional models served through Chat Completions, with a conservative 64K app budget. Muse Spark Contributor uses Responses and is not exposed by this adapter. The catalog has no price fields, so promotion status remains manual. These are direct Zen API credentials, not an OpenCode process bridge.
+
+References: [models, endpoints, pricing and data terms](https://opencode.ai/docs/zen/), [public catalog](https://opencode.ai/zen/v1/models).
