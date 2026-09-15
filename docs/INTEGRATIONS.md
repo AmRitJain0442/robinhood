@@ -6,6 +6,7 @@ Connectors are implemented one at a time and share the same local task journal. 
 | --- | --- | --- | --- |
 | OpenRouter | Chat Completions streaming | Live catalog must report an explicit zero-priced `:free` tool-capable route | HTTP fixtures, public catalog, cross-platform CI; real-account inference unverified |
 | Gemini | Native `streamGenerateContent` | Account-dependent; confirmation before every inference request | HTTP fixtures, native tool/signature round-trip, portable history; real-account inference unverified |
+| Groq | Chat Completions streaming | Account-dependent; confirmation before every inference request | HTTP fixtures, Groq token-limit field and usage formats; real-account inference unverified |
 
 ## Connecting multiple providers
 
@@ -33,3 +34,9 @@ Uses API-key authentication in the `x-goog-api-key` header, native streaming, fu
 References: [GenerateContent API](https://ai.google.dev/api/generate-content), [model catalog](https://ai.google.dev/api/models), [thought signatures](https://ai.google.dev/gemini-api/docs/thought-signatures), [pricing](https://ai.google.dev/gemini-api/docs/pricing), [billing](https://ai.google.dev/gemini-api/docs/billing).
 
 The connector does not enable built-in web search, code execution, media generation, or paid fallback. Function calls go through Robinhood's local permission boundary. Account tier, remaining allowance, regional availability, and model quality still need real-account verification.
+
+## Groq evidence — checked 2026-09-15
+
+Connect with `/connect groq` or `GROQ_API_KEY`, then `/models groq` and `/use groq MODEL`. The connector intersects its reviewed tool-capable models with the authenticated model catalog, uses `max_completion_tokens`, and handles both standard usage and Groq's usage metadata. It does not enable Compound's server-side tools. Published model rate ceilings are not added together as independent daily grants.
+
+References: [API reference](https://console.groq.com/docs/api-reference), [compatibility](https://console.groq.com/docs/openai), [tool use](https://console.groq.com/docs/tool-use/overview), [rate limits](https://console.groq.com/docs/rate-limits).

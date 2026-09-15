@@ -36,8 +36,8 @@ export async function parseCompletion(response: Response, onText: (text: string)
         if (Number.isFinite(code) && code >= 400) throw statusError(code, null);
         throw new RouteError('Provider reported an error during streaming.', 'protocol');
       }
-      if (data.usage) {
-        const reported = object(data.usage);
+      if (data.usage || object(data.x_groq).usage) {
+        const reported = object(data.usage ?? object(data.x_groq).usage);
         usage = { inputTokens: nonnegative(reported.prompt_tokens), outputTokens: nonnegative(reported.completion_tokens) };
       }
       const choice = object(Array.isArray(data.choices) ? data.choices[0] : undefined);
