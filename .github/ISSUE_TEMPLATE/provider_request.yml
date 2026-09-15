@@ -1,0 +1,30 @@
+name: Provider evidence or integration
+description: Propose a supported interface, verify an allowance, or report a changed offer.
+title: "[Provider]: "
+body:
+  - type: input
+    id: provider
+    attributes:
+      label: Provider and interface
+      description: Name the provider and its documented API, SDK, or official agent interface.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Official evidence
+      description: Link interface and allowance documentation. Include the date checked and any tier, region, or expiry restrictions.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected integration and limits
+      description: Describe the user workflow, quota units, shared pools, billing boundary, and any unknowns. Do not include credentials.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification performed
+      description: Describe any safe reproduction or live check, or state that this is documentation-only evidence.

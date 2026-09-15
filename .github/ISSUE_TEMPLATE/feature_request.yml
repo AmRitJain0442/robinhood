@@ -1,0 +1,22 @@
+name: Product or implementation proposal
+description: Propose a focused improvement to the product plan or implementation.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: Describe a concrete workflow and where it fails or becomes difficult.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Smallest useful change
+      description: Suggest a focused solution and identify the relevant milestone if possible.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: How we would know it works
+      description: Provide an example or reproducible acceptance check.
