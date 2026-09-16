@@ -1,12 +1,16 @@
 import type { Store } from './storage.js';
 import type { Session, ToolDefinition } from './types.js';
-import { prepareTool, toolDefinitions, type PreparedTool } from './tools.js';
+import { prepareTool, toolDefinitions, UnknownOutcome, type PreparedTool } from './tools.js';
 import { Jobs } from './jobs.js';
 
 export interface Todo { id: string; text: string; status: 'pending' | 'in_progress' | 'completed' }
 export interface CapabilityContext {
   store: Store; session: Session;
   question?(question: string, signal: AbortSignal): Promise<string>;
+}
+export interface ExtensionTool {
+  definition: ToolDefinition;
+  execute(args: Record<string, unknown>, context: CapabilityContext, signal: AbortSignal): Promise<string>;
 }
 const schema = (name: string, description: string, properties: Record<string, unknown>, required: string[]): ToolDefinition => ({ type: 'function', function: { name, description, parameters: { type: 'object', properties, required, additionalProperties: false } } });
 const jobTools = [
@@ -24,12 +28,45 @@ export const taskTools = [
 export const readOnlyTools = new Set(['list_files', 'read_file', 'glob_files', 'search_files', 'todo_read', 'todo_write', 'ask_user', 'goal_read', 'job_list']);
 
 export class Capabilities {
+  private extensions = new Map<string, { tools: ExtensionTool[]; close?: () => Promise<void> }>();
   constructor(readonly jobs = new Jobs()) {}
   definitions: ToolDefinition[] = [...toolDefinitions, ...taskTools, ...jobTools];
-  catalog(planning: boolean): ToolDefinition[] { return this.definitions.filter(tool => !planning || readOnlyTools.has(tool.function.name)); }
+  catalog(planning: boolean): ToolDefinition[] { return [...this.definitions, ...[...this.extensions.values()].flatMap(extension => extension.tools.map(tool => tool.definition))].filter(tool => !planning || readOnlyTools.has(tool.function.name)); }
+  names(): string[] { return [...this.extensions.keys()]; }
+  register(name: string, tools: ExtensionTool[], close?: () => Promise<void>): void {
+    if (!/^[a-z][a-z0-9_-]{0,39}$/.test(name) || this.extensions.has(name)) throw new Error('Invalid or duplicate extension name.');
+    if (!tools.length || tools.length > 128) throw new Error('An extension must supply 1-128 tools.');
+    const existing = new Set(this.catalog(false).map(tool => tool.function.name));
+    for (const tool of tools) {
+      const fn = tool.definition?.function;
+      if (tool.definition?.type !== 'function' || !fn || !/^[\w-]{1,64}$/.test(fn.name) || !fn.name.startsWith(`${name}__`) || existing.has(fn.name) || !fn.parameters || typeof fn.parameters !== 'object' || typeof tool.execute !== 'function') throw new Error('Invalid, duplicate or unnamespaced extension tool.');
+      if (Buffer.byteLength(JSON.stringify(tool.definition)) > 16000) throw new Error('Extension tool schema is too large.');
+      existing.add(fn.name);
+    }
+    this.extensions.set(name, { tools, close });
+  }
+  async unload(name: string): Promise<void> { const extension = this.extensions.get(name); if (!extension) throw new Error('Extension not loaded.'); await extension.close?.(); this.extensions.delete(name); }
+  async close(): Promise<void> {
+    await this.jobs.close();
+    const failures = await Promise.allSettled([...this.extensions.keys()].map(name => this.unload(name)));
+    if (failures.some(result => result.status === 'rejected')) throw new Error('An extension did not shut down cleanly.');
+  }
   async prepare(context: CapabilityContext, name: string, raw: string): Promise<PreparedTool> {
     const { store, session } = context;
     if (store.state(session.id, 'plan-mode', false) && !readOnlyTools.has(name)) throw new Error('Plan mode permits read-only workspace tools. Use /plan off before changing files or running commands.');
+    const extension = [...this.extensions.values()].flatMap(extension => extension.tools).find(tool => tool.definition.function.name === name);
+    if (extension) {
+      const args = JSON.parse(raw) as Record<string, unknown>;
+      if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error('Expected extension argument object.');
+      return { description: `Extension ${name}:\n${raw}`, execute: async signal => {
+        signal.throwIfAborted();
+        try {
+          const result = await extension.execute(args, context, AbortSignal.any([signal, AbortSignal.timeout(120_000)]));
+          if (typeof result !== 'string' || Buffer.byteLength(result) > 32000) throw new Error('Extension result exceeded 32 KiB or was not text.');
+          return result;
+        } catch (error) { throw new UnknownOutcome(`Extension ${name} did not return a confirmed outcome. Inspect its state before reconciliation: ${String(error)}`); }
+      } };
+    }
     if (jobTools.some(tool => tool.function.name === name)) {
       const args = JSON.parse(raw) as Record<string, unknown>;
       if (name === 'job_list') return { description: 'Inspect background jobs', execute: async () => JSON.stringify(this.jobs.list(store, session)) };

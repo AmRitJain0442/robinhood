@@ -21,6 +21,7 @@ import { Capabilities } from './capabilities.js';
 import { compactSession } from './context.js';
 import { systemPrompt, systemPromptHash } from './prompt.js';
 import { Jobs } from './jobs.js';
+import { listSkills, loadSkill, loadPlugin, loadMcp } from './extensions.js';
 
 const help = `Robinhood 0.0.1 / developer preview
 
@@ -52,6 +53,10 @@ In the terminal:
   /jobs                   Inspect background jobs and outcomes
   /job-stop ID            Stop an owned background job
   /job-resolve ID NOTE    Record an interrupted job outcome you verified
+  /skills, /skill NAME    Discover and activate workspace SKILL.md instructions
+  /plugin FILE           Load an explicitly trusted local JavaScript plugin
+  /mcp CONFIG.json       Connect an explicitly trusted MCP server
+  /extensions            List loaded extensions; /unload NAME disconnects one
   /pending                Inspect operations needing reconciliation
   /resolve ID NOTE        Record the outcome you verified for an uncertain operation
   /reconcile              Accept a changed checkout after inspecting the workspace
@@ -223,6 +228,27 @@ async function main(): Promise<void> {
         }
         if (command === '/providers') { terminal.line(`${providers.map(entry => `${entry.id}: ${connections.has(entry.id) ? 'connected' : 'not connected'} — ${entry.access}`).join('\n')}\nSelected route: ${routes[0]?.id ?? 'none'}`); continue; }
         if (command === '/prompt') { terminal.line(`System prompt ${systemPromptHash}\n${systemPrompt}`); continue; }
+        if (command === '/skills') { terminal.line((await listSkills(workspace)).join('\n') || 'No skills in .agents/skills/*/SKILL.md.'); continue; }
+        if (command === '/skill') {
+          const content = secrets.redact(await loadSkill(workspace, argument));
+          terminal.line(`Skill ${argument}:\n${content}`);
+          if (!current) current = store.create(workspace, await workspaceIdentity(workspace), `Work with skill ${argument}`);
+          store.event(current.id, 'active-skill', { name: argument, content });
+          terminal.line('Skill activated for this session. It supplies instructions, not additional permissions.'); continue;
+        }
+        if (command === '/extensions') { terminal.line(capabilities.names().join('\n') || 'No extensions loaded.'); continue; }
+        if (command === '/unload') { await capabilities.unload(argument); terminal.line(`Unloaded ${argument}.`); continue; }
+        if (command === '/plugin' || command === '/mcp') {
+          if (!argument) throw new Error(`Use ${command} FILE.`);
+          active = new AbortController();
+          try {
+            if (await ui.approve(`Load ${path.resolve(argument)}?\nLocal plugin/server code runs with your OS privileges. Remote MCP sends approved arguments to its configured service. Only load a file you trust.`, active.signal)) {
+              const name = command === '/plugin' ? await loadPlugin(path.resolve(argument), capabilities) : await loadMcp(path.resolve(argument), capabilities, active.signal);
+              terminal.line(`Loaded ${name}. Its model tool calls require approval; plan mode blocks extension tools.`);
+            }
+          } finally { active = undefined; }
+          continue;
+        }
         if (command === '/jobs') { terminal.line(JSON.stringify(capabilities.jobs.list(store, required()), null, 2)); continue; }
         if (command === '/job-stop') { terminal.line(JSON.stringify(await capabilities.jobs.stop(store, required(), argument), null, 2)); continue; }
         if (command === '/job-resolve') { capabilities.jobs.resolve(store, required(), pieces[0] ?? '', pieces.slice(1).join(' ')); terminal.line('Verified job outcome recorded.'); continue; }
@@ -306,7 +332,7 @@ async function main(): Promise<void> {
     }
   } finally {
     process.removeListener('SIGINT', interrupt);
-    await capabilities.jobs.close().catch(error => terminal.line(`Background job cleanup needs inspection: ${String(error)}`));
+    await capabilities.close().catch(error => terminal.line(`Runtime cleanup needs inspection: ${String(error)}`));
     await Promise.allSettled([...connections.values()].map(connection => connection.close?.()));
     terminal.close();
     store.close();

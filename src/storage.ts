@@ -103,7 +103,7 @@ export class Store {
       const child = this.create(source.workspace, source.identity, objective?.trim() || source.objective);
       for (const message of this.messages(id)) this.append(child.id, message);
       for (const op of operations) this.db.prepare('INSERT INTO operations VALUES (?, ?, ?, ?, ?, ?, ?)').run(randomUUID(), child.id, op.call_id, op.name, op.args, op.state, op.result);
-      for (const kind of ['context-compacted', 'todos', 'plan-mode', 'goal']) {
+      for (const kind of ['context-compacted', 'todos', 'plan-mode', 'goal', 'active-skill']) {
         const state = this.state<unknown>(id, kind, null);
         if (state !== null) this.event(child.id, kind, state);
       }
