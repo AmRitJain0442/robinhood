@@ -27,6 +27,7 @@ import { Terminals } from './terminals.js';
 import { readWorkflow, runWorkflow } from './workflow.js';
 import { prepareTool } from './tools.js';
 import { Approvals, approvalInstructions } from './approvals.js';
+import { RoutePool, automaticProviders } from './routing.js';
 
 const help = `Robinhood 0.0.1 / developer preview
 
@@ -51,6 +52,7 @@ In the terminal:
   /memory                 Inspect the task's saved conversation
   /prompt                 Inspect the active system prompt and fingerprint
   /permissions yolo|ask   Change permission prompts for this process
+  /chain [on|off]         Inspect automatic free-model routing or toggle it
   /plan on|off            Toggle read-only planning for this session
   /todos                  Inspect the durable task checklist
   /goal TEXT              Set an explicit goal; /goal shows its status
@@ -109,6 +111,8 @@ async function main(): Promise<void> {
   const connections = new Map<string, Connector>();
   let selectedProvider = 'openrouter';
   let routes: Route[] = [];
+  const pool = new RoutePool();
+  let explicitRoute: Route | undefined;
   let active: AbortController | undefined;
   let vault: AccountVault | undefined;
   const capabilities = new Capabilities(new Jobs(secrets), new Terminals(secrets));
@@ -133,6 +137,11 @@ async function main(): Promise<void> {
     terminal.line(`Resumed ${session.id}\nObjective: ${session.objective}`);
   };
   const required = (): Session => { if (!current) throw new Error('Start a task or /resume a saved session first.'); return current; };
+  const prepareRoutes = async (signal: AbortSignal) => {
+    routes = await pool.discover(connections, explicitRoute, current ? store.get(current.id).route : null, signal, text => terminal.line(secrets.redact(text)));
+    if (!routes.length) throw new Error('No available routes. Connect OpenCode, Kilo, or OpenRouter, select an account model explicitly, or retry after cooldown.');
+    terminal.line(`${pool.enabled ? 'Automatic chain' : 'Single model'}: ${routes.length} available route(s), starting with ${routes[0]!.id}.`);
+  };
   const listModels = async (connection: Connector) => {
     active = new AbortController();
     try { const models = await connection.models(active.signal); active.signal.throwIfAborted(); return models; }
@@ -156,7 +165,7 @@ async function main(): Promise<void> {
     if (values.session) load(values.session);
     while (true) {
       const todos = current ? store.state<Todo[]>(current.id, 'todos', []) : [];
-      terminal.setContext({ workspace, route: routes[0]?.id ?? 'Choose a model /models', accounts: connections.size, session: current?.id ?? 'New task', mode: (current && store.state(current.id, 'plan-mode', false) ? 'PLAN · ' : '') + approvals.mode.toUpperCase(), tasks: todos.length ? `${todos.filter(todo => todo.status === 'completed').length}/${todos.length} tasks` : 'No checklist', workers: current ? capabilities.jobs.list(store, current).filter(job => job.status === 'running').length + capabilities.terminals.list(store, current).filter(terminal => terminal.status === 'running').length : 0 });
+      terminal.setContext({ workspace, route: (current ? store.get(current.id).route : null) ?? routes[0]?.id ?? 'Automatic free-model chain', accounts: connections.size, session: current?.id ?? 'New task', mode: (current && store.state(current.id, 'plan-mode', false) ? 'PLAN · ' : '') + approvals.mode.toUpperCase(), tasks: todos.length ? `${todos.filter(todo => todo.status === 'completed').length}/${todos.length} tasks` : 'No checklist', workers: current ? capabilities.jobs.list(store, current).filter(job => job.status === 'running').length + capabilities.terminals.list(store, current).filter(terminal => terminal.status === 'running').length : 0 });
       let input: string;
       try { input = (await terminal.question('\nYou > ')).trim(); } catch { break; }
       if (!input) continue;
@@ -202,6 +211,7 @@ async function main(): Promise<void> {
           connections.set(entry.id, connection);
           selectedProvider = entry.id;
           routes = [];
+          explicitRoute = undefined;
           if (vault) {
             try { await vault.save(entry.id, { key, configuration, method }); terminal.line(entry.bridge ? 'CLI connection saved. The native CLI manages any account authorization.' : 'Account linked and saved in the OS credential vault.'); }
             catch { terminal.line('Connected for this process only: the OS vault could not save this credential. Any older saved credential remains unchanged.'); }
@@ -217,6 +227,7 @@ async function main(): Promise<void> {
           await connections.get(id)?.close?.();
           connections.delete(id);
           routes = routes.filter(route => route.provider !== id);
+          if (explicitRoute?.provider === id) explicitRoute = undefined;
           terminal.line(`${id} unlinked and saved credential removed. Environment credentials, if set, will reload on restart.`);
           continue;
         }
@@ -230,6 +241,8 @@ async function main(): Promise<void> {
           const model = await terminal.select(`${entry.name} - choose a model`, models.map(model => ({ value: model.id, label: model.id, detail: `${model.context.toLocaleString()} context` })));
           if (!connections.has(id)) throw new Error(`Use /connect ${id} before selecting a model.`);
           routes = [connection.route(model)]; selectedProvider = id;
+          explicitRoute = routes[0];
+          if (current) store.selectRoute(current.id, explicitRoute!.id);
           terminal.line(`Selected ${id}/${model}. ${entry.access}.`);
           continue;
         }
@@ -241,6 +254,8 @@ async function main(): Promise<void> {
           if (!connection) throw new Error(`Use /connect ${id} first.`);
           if (!(await listModels(connection)).some(item => item.id === model)) throw new Error(`Choose a model ID from /models ${id}.`);
           routes = [connection.route(model)];
+          explicitRoute = routes[0];
+          if (current) store.selectRoute(current.id, explicitRoute!.id);
           selectedProvider = id;
           terminal.line(`Selected ${id}/${model}. ${entry.access}. Saved task history stays in this session.`);
           continue;
@@ -251,6 +266,12 @@ async function main(): Promise<void> {
           if (!['yolo', 'ask'].includes(argument)) throw new Error('Use /permissions yolo or /permissions ask.');
           approvals.mode = argument as 'yolo' | 'ask';
           terminal.line(`${argument.toUpperCase()} mode enabled. ${argument === 'yolo' ? 'Permission prompts are disabled; selected-account requests may consume credits.' : 'Permission prompts are enabled.'}`); continue;
+        }
+        if (command === '/chain') {
+          if (argument && !['on', 'off'].includes(argument)) throw new Error('Use /chain, /chain on, or /chain off.');
+          if (argument) pool.enabled = argument === 'on';
+          terminal.line(`Automatic chain ${pool.enabled ? 'ON' : 'OFF'}. Discovers all eligible models from connected ${[...automaticProviders].join(', ')}. Other accounts enter only through explicit /use or /models selection. Stops when the task replies, routes are exhausted, or 100 successful model steps complete.`);
+          continue;
         }
         if (command === '/pin' || command === '/pins' || command === '/unpin') {
           if (!current && command === '/pin' && argument) current = store.create(workspace, await workspaceIdentity(workspace), 'Task with pinned constraints');
@@ -276,7 +297,6 @@ async function main(): Promise<void> {
           terminal.line('Project guidance loaded. Existing user constraints and runtime permissions still apply.'); continue;
         }
         if (command === '/workflow' || command === '/workflow-resume') {
-          if (!routes[0]) throw new Error('Select a model before running a workflow.');
           active = new AbortController();
           try {
             if (command === '/workflow') {
@@ -285,7 +305,8 @@ async function main(): Promise<void> {
               if (!current) current = store.create(workspace, await workspaceIdentity(workspace), secrets.redact(workflow.name));
               store.event(current.id, 'workflow', JSON.parse(secrets.redact(JSON.stringify(workflow))));
             }
-            await runWorkflow(store, required(), routes[0], ui, secrets, capabilities, active.signal);
+            await prepareRoutes(active.signal);
+            await runWorkflow(store, required(), routes, ui, secrets, capabilities, active.signal);
           } finally { active = undefined; }
           continue;
         }
@@ -296,9 +317,8 @@ async function main(): Promise<void> {
           terminal.line(matches.slice(0, 50).map(session => `${session.id}  ${session.objective}`).join('\n') || 'No matching sessions.'); continue;
         }
         if (command === '/delegate') {
-          if (!routes[0]) throw new Error('Select a model before delegating.');
           active = new AbortController();
-          try { await delegateTask(store, required(), argument, routes[0], ui, secrets, capabilities, active.signal); }
+          try { required(); await prepareRoutes(active.signal); await delegateTask(store, required(), argument, routes, ui, secrets, capabilities, active.signal); }
           finally { active = undefined; }
           continue;
         }
@@ -399,12 +419,14 @@ async function main(): Promise<void> {
           continue;
         }
         if (command.startsWith('/') && command !== '/continue') throw new Error('Unknown command. Use /help.');
-        if (!routes.length) throw new Error('Use /connect and /use MODEL before starting a task.');
         if (command === '/continue') required();
-        if (!current) current = store.create(workspace, await workspaceIdentity(workspace), secrets.redact(input));
-        terminal.line(`Session ${current.id} | ${routes[0]!.id}`);
         active = new AbortController();
-        try { await new Runner(store, secrets, capabilities).turn(current, command === '/continue' ? undefined : input, routes, ui, active.signal); }
+        try {
+          await prepareRoutes(active.signal);
+          if (!current) current = store.create(workspace, await workspaceIdentity(workspace), secrets.redact(input));
+          terminal.line(`Session ${current.id}`);
+          await new Runner(store, secrets, capabilities).turn(current, command === '/continue' ? undefined : input, routes, ui, active.signal);
+        }
         finally { active = undefined; }
       } catch (error) { terminal.line(`Paused: ${secrets.redact(String(error))}`); }
     }

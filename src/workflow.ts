@@ -12,7 +12,7 @@ export async function readWorkflow(filename: string): Promise<Workflow> {
   if (typeof value.name !== 'string' || !value.name.trim() || value.name.length > 120 || !Array.isArray(value.steps) || !value.steps.length || value.steps.length > 12 || value.steps.some(step => typeof step !== 'string' || !step.trim() || step.length > 8000)) throw new Error('Workflow needs a name and 1-12 nonempty prompt steps (at most 8000 characters each).');
   return { name: value.name, steps: value.steps, next: 0, inFlight: false, status: 'ready' };
 }
-export async function runWorkflow(store: Store, session: Session, route: Route, ui: Interaction, secrets: Secrets, capabilities: Capabilities, signal: AbortSignal): Promise<void> {
+export async function runWorkflow(store: Store, session: Session, route: Route | Route[], ui: Interaction, secrets: Secrets, capabilities: Capabilities, signal: AbortSignal): Promise<void> {
   const workflow = store.state<Workflow | null>(session.id, 'workflow', null);
   if (!workflow || workflow.status === 'completed') throw new Error('No unfinished workflow. Load one with /workflow FILE.');
   const save = () => store.event(session.id, 'workflow', workflow);
@@ -31,7 +31,7 @@ export async function runWorkflow(store: Store, session: Session, route: Route, 
     }
     workflow.status = 'running'; save();
     try {
-      await new Runner(store, secrets, capabilities).turn(session, undefined, [route], ui, signal);
+      await new Runner(store, secrets, capabilities).turn(session, undefined, (Array.isArray(route) ? route : [route]), ui, signal);
       const last = store.messages(session.id).at(-1);
       if (last?.role !== 'assistant' || last.tool_calls?.length) throw new Error('Step paused at the turn limit. Use /workflow-resume.');
       workflow.next++; workflow.inFlight = false;
