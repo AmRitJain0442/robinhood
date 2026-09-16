@@ -180,7 +180,7 @@ export class Store {
 
   private assertJobsSettled(id: string): void {
     const jobs = new Map<string, string>();
-    for (const event of this.events(id).filter(event => event.kind === 'job')) {
+    for (const event of this.events(id).filter(event => event.kind === 'job' || event.kind === 'terminal')) {
       const job = event.body as { id: string; status: string };
       jobs.set(job.id, job.status);
     }

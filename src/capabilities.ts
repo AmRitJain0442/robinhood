@@ -3,6 +3,7 @@ import type { Session, ToolDefinition } from './types.js';
 import { prepareTool, toolDefinitions, UnknownOutcome, type PreparedTool } from './tools.js';
 import { Jobs } from './jobs.js';
 import { fetchPublicPage } from './web.js';
+import { Terminals } from './terminals.js';
 
 export interface Todo { id: string; text: string; status: 'pending' | 'in_progress' | 'completed' }
 export interface CapabilityContext {
@@ -15,6 +16,11 @@ export interface ExtensionTool {
 }
 const schema = (name: string, description: string, properties: Record<string, unknown>, required: string[]): ToolDefinition => ({ type: 'function', function: { name, description, parameters: { type: 'object', properties, required, additionalProperties: false } } });
 const jobTools = [
+  schema('terminal_open', 'Open a persistent workspace shell. State survives between calls; shell actions require approval. Close within ten minutes.', {}, []),
+  schema('terminal_list', 'List this session persistent terminals.', {}, []),
+  schema('terminal_read', 'Read bounded output from a persistent terminal.', { id: { type: 'string' } }, ['id']),
+  schema('terminal_send', 'Send literal input to an owned terminal. End a command with carriage return. Input acceptance is not command completion.', { id: { type: 'string' }, text: { type: 'string' } }, ['id', 'text']),
+  schema('terminal_close', 'Close a persistent terminal and its process tree.', { id: { type: 'string' } }, ['id']),
   schema('job_start', 'Start an explicitly requested background shell job after approval. Up to 10 minutes and 32 KiB output. Stops when Robinhood exits.', { command: { type: 'string' } }, ['command']),
   schema('job_list', 'Inspect this session background jobs and saved outcomes.', {}, []),
   schema('job_stop', 'Stop a background job owned by this Robinhood process and collect its outcome.', { id: { type: 'string' } }, ['id']),
@@ -31,7 +37,7 @@ export const readOnlyTools = new Set(['list_files', 'read_file', 'glob_files', '
 
 export class Capabilities {
   private extensions = new Map<string, { tools: ExtensionTool[]; close?: () => Promise<void> }>();
-  constructor(readonly jobs = new Jobs()) {}
+  constructor(readonly jobs = new Jobs(), readonly terminals = new Terminals()) {}
   definitions: ToolDefinition[] = [...toolDefinitions, ...taskTools, ...jobTools];
   catalog(planning: boolean): ToolDefinition[] { return [...this.definitions, ...[...this.extensions.values()].flatMap(extension => extension.tools.map(tool => tool.definition))].filter(tool => !planning || readOnlyTools.has(tool.function.name)); }
   names(): string[] { return [...this.extensions.keys()]; }
@@ -49,7 +55,7 @@ export class Capabilities {
   }
   async unload(name: string): Promise<void> { const extension = this.extensions.get(name); if (!extension) throw new Error('Extension not loaded.'); await extension.close?.(); this.extensions.delete(name); }
   async close(): Promise<void> {
-    await this.jobs.close();
+    await Promise.all([this.jobs.close(), this.terminals.close()]);
     const failures = await Promise.allSettled([...this.extensions.keys()].map(name => this.unload(name)));
     if (failures.some(result => result.status === 'rejected')) throw new Error('An extension did not shut down cleanly.');
   }
@@ -71,6 +77,18 @@ export class Capabilities {
     }
     if (jobTools.some(tool => tool.function.name === name)) {
       const args = JSON.parse(raw) as Record<string, unknown>;
+      if (name === 'terminal_open') return { description: 'Open a persistent shell with your OS privileges (10-minute lifetime)', execute: async signal => { signal.throwIfAborted(); return JSON.stringify(await this.terminals.open(store, session)); } };
+      if (name === 'terminal_list') return { description: 'List persistent terminals', execute: async () => JSON.stringify(this.terminals.list(store, session)) };
+      if (name.startsWith('terminal_') && typeof args.id === 'string') {
+        const id = args.id;
+        return { description: `${name} ${id}${typeof args.text === 'string' ? `\n${JSON.stringify(args.text)}` : ''}`, execute: async signal => {
+          signal.throwIfAborted();
+          if (name === 'terminal_read') return this.terminals.read(session.id, id);
+          if (name === 'terminal_send' && typeof args.text === 'string') return this.terminals.send(session.id, id, args.text);
+          if (name === 'terminal_close') { await this.terminals.stop(session.id, id); return 'Terminal closed.'; }
+          throw new Error('Invalid terminal arguments.');
+        } };
+      }
       if (name === 'job_list') return { description: 'Inspect background jobs', execute: async () => JSON.stringify(this.jobs.list(store, session)) };
       if (name === 'job_start' && typeof args.command === 'string') {
         const command = args.command;

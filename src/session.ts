@@ -23,6 +23,7 @@ export class Runner {
     if (session.identity !== await workspaceIdentity(session.workspace)) throw new Error('Workspace identity or Git HEAD changed. Inspect the workspace, then use /reconcile before continuing.');
     if (this.store.operations(session.id).some(op => op.state === 'unknown' || op.state === 'running')) throw new Error('A previous tool has an unknown outcome. Use /pending and /resolve before continuing.');
     if (this.capabilities.jobs.list(this.store, session).some(job => job.status === 'unknown')) throw new Error('A background job has an unknown outcome. Inspect /jobs and use /job-resolve before continuing.');
+    if (this.capabilities.terminals.list(this.store, session).some(terminal => terminal.status === 'unknown')) throw new Error('A persistent terminal has an unknown outcome. Inspect /terminals and use /terminal-resolve before continuing.');
     if (prompt?.trim()) this.store.append(session.id, { role: 'user', content: this.secrets.redact(prompt) });
     let index = 0;
     this.store.selectRoute(session.id, routes[0]!.id);

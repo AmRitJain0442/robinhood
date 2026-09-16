@@ -23,6 +23,7 @@ import { systemPrompt, systemPromptHash } from './prompt.js';
 import { Jobs } from './jobs.js';
 import { listSkills, loadSkill, loadPlugin, loadMcp } from './extensions.js';
 import { delegateTask } from './delegation.js';
+import { Terminals } from './terminals.js';
 
 const help = `Robinhood 0.0.1 / developer preview
 
@@ -60,6 +61,8 @@ In the terminal:
   /extensions            List loaded extensions; /unload NAME disconnects one
   /delegate TASK          Run a read-only research agent and bring back its report
   /search TEXT            Search saved session objectives and conversation text
+  /terminals              List persistent shells; /terminal-close ID stops one
+  /terminal-resolve ID NOTE  Reconcile an interrupted shell after inspection
   /pending                Inspect operations needing reconciliation
   /resolve ID NOTE        Record the outcome you verified for an uncertain operation
   /reconcile              Accept a changed checkout after inspecting the workspace
@@ -96,7 +99,7 @@ async function main(): Promise<void> {
   let routes: Route[] = [];
   let active: AbortController | undefined;
   let vault: AccountVault | undefined;
-  const capabilities = new Capabilities(new Jobs(secrets));
+  const capabilities = new Capabilities(new Jobs(secrets), new Terminals(secrets));
   const interrupt = () => { if (active) active.abort(new Error('Cancelled by user')); else terminal.close(); };
   terminal.rl.on('SIGINT', interrupt);
   process.on('SIGINT', interrupt);
@@ -266,6 +269,9 @@ async function main(): Promise<void> {
           continue;
         }
         if (command === '/jobs') { terminal.line(JSON.stringify(capabilities.jobs.list(store, required()), null, 2)); continue; }
+        if (command === '/terminals') { terminal.line(JSON.stringify(capabilities.terminals.list(store, required()), null, 2)); continue; }
+        if (command === '/terminal-close') { await capabilities.terminals.stop(required().id, argument); terminal.line('Terminal closed.'); continue; }
+        if (command === '/terminal-resolve') { capabilities.terminals.resolve(store, required(), pieces[0] ?? '', pieces.slice(1).join(' ')); terminal.line('Terminal outcome recorded.'); continue; }
         if (command === '/job-stop') { terminal.line(JSON.stringify(await capabilities.jobs.stop(store, required(), argument), null, 2)); continue; }
         if (command === '/job-resolve') { capabilities.jobs.resolve(store, required(), pieces[0] ?? '', pieces.slice(1).join(' ')); terminal.line('Verified job outcome recorded.'); continue; }
         if (command === '/plan') {
