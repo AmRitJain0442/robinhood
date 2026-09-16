@@ -4,7 +4,7 @@
 
 A local coding terminal with durable task memory, configurable permissions, and model routing built around the free access you actually have.
 
-> **Developer preview — 0.0.1.** There are 25 cloud API connectors and four native CLI bridges: OpenCode, Kilo, Gemini, and GitHub Copilot. Native Google/GitHub login is supported; authenticated inference remains unverified. OpenCode and the direct Kilo API passed anonymous text smoke tests. Automatic live-provider switching is pending. See the [integration ledger](docs/INTEGRATIONS.md).
+> **Developer preview — 0.0.1.** There are 25 cloud API connectors and four native CLI bridges: OpenCode, Kilo, Gemini, and GitHub Copilot. Native Google/GitHub login is supported; authenticated inference remains unverified. OpenCode and the direct Kilo API passed anonymous text smoke tests. Automatic free-model fallback is implemented and fixture-tested; live quota exhaustion remains unverified. See the [integration ledger](docs/INTEGRATIONS.md).
 
 ## Try the handoff demo
 
@@ -44,7 +44,9 @@ robinhood
 
 Robinhood uses your current directory as the workspace. You can also run `robinhood --workspace /path/to/project`, `robinhood --help`, or `robinhood demo`. The local installation points to this checkout; run `npm run build` here after pulling updates. Remove the command with `npm uninstall -g @amritjain0442/robinhood`.
 
-**YOLO is the default.** Tools, selected-account model requests, and explicit terminal commands run without permission prompts. `robinhood --ask` or `/permissions ask` restores confirmations; `/permissions yolo` turns them off again. The current mode is visible in the TUI. Account-dependent requests may consume paid credits; YOLO does not switch accounts or create a paid fallback. Credential exclusions, file hash checks, plan mode, provider pricing checks, and unknown-outcome recovery remain enforced. Login and genuinely missing task information can still require input.
+**YOLO is the default.** Tools, selected-account model requests, and explicit terminal commands run without permission prompts. `robinhood --ask` or `/permissions ask` restores confirmations; `/permissions yolo` turns them off again. The current mode is visible in the TUI. Account-dependent requests may consume paid credits; Automatic fallbacks are restricted to the free-model pool described below. Credential exclusions, file hash checks, plan mode, provider pricing checks, and unknown-outcome recovery remain enforced. Login and genuinely missing task information can still require input.
+
+**Automatic model chaining is on by default.** Connect OpenCode, Kilo (API or CLI), or OpenRouter and describe your task. Robinhood discovers their eligible free models, uses the last working model first, and switches on quota, capacity, or authentication errors. All models share the task journal and completed tool receipts. Use `/chain` for status or `/chain off` for a single explicitly selected model. [Routing behavior and limits](docs/ROUTING.md).
 
 Inside the terminal:
 
@@ -85,7 +87,7 @@ Your conversation and approved tool results are sent to the selected provider an
 | Recovery | Known completed tools stay completed; uncertain crash outcomes block continuation until reconciled |
 | Agent capabilities | Planning, checklists, explicit goals, session branches, reviewed compaction, pinned constraints, skills, plugins, MCP, background jobs, persistent shells, research delegation and workflows |
 | Portability | Source installation; automated tests configured for Windows, macOS, and Linux |
-| Handoff | Tested with simulated providers; automatic live-provider fallback is pending |
+| Handoff | Automatic free-model fallback with shared receipts; live quota exhaustion unverified |
 
 The quota display reports observed activity and unknown balances honestly. This preview does not calculate a universal daily token pool or automatically compact long sessions. Model-specific compatibility still needs real-account verification.
 
