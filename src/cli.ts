@@ -129,9 +129,9 @@ async function main(): Promise<void> {
           const flow = id === 'openrouter' ? openRouterFlow : id === 'puter' ? puterFlow : undefined;
           const method = await terminal.select(`Connect ${entry.name}`, [
             ...(flow ? [{ value: 'browser', label: 'Sign in with your browser', detail: id === 'puter' ? 'experimental Puter integration' : 'authorize Robinhood on OpenRouter' }] : []),
-            ...(entry.anonymous ? [{ value: 'anonymous', label: id === 'opencode' ? 'Launch OpenCode free-model bridge' : 'Continue without an account', detail: 'shared limits apply' }] : []),
-            ...(id === 'opencode' ? [] : [{ value: 'key', label: 'Use an API credential', detail: 'saved in your OS credential vault' }]),
-            ...(setupGuides[id] && id !== 'opencode' ? [{ value: 'setup', label: 'Open official account setup', detail: 'sign in there, then paste a credential once' }] : []),
+            ...(entry.anonymous || entry.bridge ? [{ value: 'anonymous', label: entry.bridge?.label ?? 'Continue without an account', detail: entry.bridge?.login ?? 'shared limits apply' }] : []),
+            ...(entry.bridge ? [] : [{ value: 'key', label: 'Use an API credential', detail: 'saved in your OS credential vault' }]),
+            ...(setupGuides[id] && !entry.bridge ? [{ value: 'setup', label: 'Open official account setup', detail: 'sign in there, then paste a credential once' }] : []),
           ]);
           terminal.line(`Task context goes to ${entry.name} and its upstream services. ${entry.access}.`);
           let key = '';

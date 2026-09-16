@@ -13,6 +13,12 @@ Every functional step gets its own tested commit. Live checks use only public sy
 
 ## Access principles
 
+### Kilo CLI (implemented)
+
+Use `/connect kilo-cli`, choose **Launch Kilo free-model bridge**, then `/models kilo-cli`. This is separate from the direct `/connect kilo` API connector. The pinned Kilo 7.7.2 process uses an isolated profile, no account keys, and the same structured suggestions and Robinhood approval path as OpenCode. Only explicit `:free` model IDs with zero advertised input/output/cache prices and tool support are selectable; automatic routers are excluded. Catalog metadata is not a remaining-balance guarantee. Requests require public-data consent and have a two-minute deadline.
+
+The actual Kilo executable passed a local model fixture covering tool denial in the engine, approval in Robinhood, a single file write, and receipt handoff. Live model inference is not yet verified. Kilo can retry internally; a retry-limit setting is supplied in addition to Robinhood's deadline.
+
 - A CLI is not an additional token allowance unless its provider grants one.
 - The CLI owns its supported login and token refresh. Robinhood does not extract browser cookies or reuse a private OAuth client.
 - Advertised free routes, account-dependent allowances, and subscriptions must remain distinct.

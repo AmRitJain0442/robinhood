@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { OpenCodeBridge, OpenCodeProcess, engineConfig, engineCompletion, freeEngineModels, type Engine } from '../src/bridges/opencode.js';
+import { KiloBridge, KiloProcess, kiloConfig, kiloModels } from '../src/bridges/kilo.js';
 import { Store } from '../src/storage.js';
 import { Runner } from '../src/session.js';
 import { workspaceIdentity } from '../src/tools.js';
@@ -59,11 +60,21 @@ test('OpenCode cancellation closes the owned engine and allows a fresh connectio
   await bridge.models(); assert.equal(created, 2); await bridge.close();
 });
 
+for (const variant of [
+  { name: 'OpenCode', packageName: 'opencode-ai', providerID: 'opencode', model: 'big-pickle', config: engineConfig,
+    bridge: (config: unknown) => new OpenCodeBridge(() => new OpenCodeProcess(config)) },
+  { name: 'Kilo', packageName: '@kilocode/cli', providerID: 'kilo', model: 'robinhood/fixture:free', config: kiloConfig,
+    bridge: (config: unknown) => new KiloBridge(() => new KiloProcess(config)) },
+]) {
 let installed = true;
-try { createRequire(import.meta.url).resolve('opencode-ai/package.json'); } catch { installed = false; }
-test('real OpenCode CLI routes a structured tool through Robinhood approval and retains its receipt', { skip: !installed, timeout: 60000 }, async () => {
+try { createRequire(import.meta.url).resolve(`${variant.packageName}/package.json`); } catch { installed = false; }
+test(`real ${variant.name} CLI routes a structured tool through Robinhood approval and retains its receipt`, { skip: !installed, timeout: 60000 }, async () => {
   const requests: Array<Record<string, any>> = [];
   const mock = createServer(async (req, res) => {
+    if (req.method === 'GET') {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ data: [{ id: variant.model, name: 'Fixture', context_length: 128000, supported_parameters: ['tools'], architecture: { input_modalities: ['text'], output_modalities: ['text'] }, pricing: { prompt: '0', completion: '0', input_cache_read: '0', input_cache_write: '0' } }] })); return;
+    }
     let raw = ''; for await (const chunk of req) raw += chunk;
     const body = JSON.parse(raw); requests.push(body);
     if (requests.length > 4) { res.writeHead(400, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: { message: 'Unexpected extra engine request' } })); return; }
@@ -75,19 +86,19 @@ test('real OpenCode CLI routes a structured tool through Robinhood approval and 
     res.end('data: [DONE]\n\n');
   });
   mock.listen(0, '127.0.0.1'); await once(mock, 'listening');
-  const config = engineConfig();
-  const fixture = { ...config, provider: { opencode: {
-    npm: '@ai-sdk/openai-compatible', whitelist: ['big-pickle'],
+  const config = variant.config();
+  const fixture = { ...config, provider: { [variant.providerID]: {
+    npm: '@ai-sdk/openai-compatible', whitelist: [variant.model],
     options: { baseURL: `http://127.0.0.1:${(mock.address() as { port: number }).port}/v1`, apiKey: 'synthetic-fixture', maxRetries: 0 },
-    models: { 'big-pickle': { name: 'Fixture', limit: { context: 128000, output: 4096 }, tool_call: true, cost: { input: 0, output: 0, cache_read: 0, cache_write: 0 } } },
+    models: { [variant.model]: { name: 'Fixture', limit: { context: 128000, output: 4096 }, tool_call: true, cost: { input: 0, output: 0, cache_read: 0, cache_write: 0 } } },
   } } };
-  const bridge = new OpenCodeBridge(() => new OpenCodeProcess(fixture));
+  const bridge = variant.bridge(fixture);
   const scratch = await mkdtemp(path.join(tmpdir(), 'robinhood-bridge-test-'));
   const store = new Store(path.join(scratch, 'sessions.db'));
   const session = store.create(scratch, await workspaceIdentity(scratch), 'Create the fixture file once.');
   let approvals = 0;
   try {
-    await new Runner(store).turn(session, 'Create receipt.txt with once.', [bridge.route('big-pickle')], {
+    await new Runner(store).turn(session, 'Create receipt.txt with once.', [bridge.route(variant.model)], {
       text() {}, status() {}, approveRequest: async () => true,
       approve: async () => { approvals++; await assert.rejects(readFile(path.join(scratch, 'receipt.txt'))); return true; },
     }, AbortSignal.timeout(45000));
@@ -95,7 +106,7 @@ test('real OpenCode CLI routes a structured tool through Robinhood approval and 
     assert.equal(approvals, 1); assert.equal(requests.length, 2);
     assert.ok(JSON.stringify(requests[1]!.messages).includes('once'));
     for (const request of requests) {
-      assert.equal(request.model, 'big-pickle');
+      assert.equal(request.model, variant.model);
       assert.ok(request.tools.some((tool: any) => tool.function.name === 'StructuredOutput'));
       assert.ok(!request.tools.some((tool: any) => ['bash', 'write', 'edit', 'task', 'read'].includes(tool.function.name)));
     }
@@ -103,4 +114,14 @@ test('real OpenCode CLI routes a structured tool through Robinhood approval and 
   } finally {
     await bridge.close(); store.close(); mock.closeAllConnections(); await new Promise<void>(resolve => mock.close(() => resolve()));
   }
+});
+}
+
+test('Kilo excludes automatic routers even when they advertise zero prices', () => {
+  const data = catalog(); data.all[0]!.id = 'kilo';
+  const model = data.all[0]!.models['big-pickle'];
+  for (const id of ['kilo-auto/free', 'openrouter/auto', 'openrouter/free', 'auto/model:free']) {
+    model.id = id; assert.deepEqual(kiloModels(data), []);
+  }
+  model.id = 'vendor/model:free'; assert.equal(kiloModels(data).length, 1);
 });
