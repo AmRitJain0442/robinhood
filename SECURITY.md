@@ -10,7 +10,9 @@ The current development branch is the only supported version. There is no stable
 
 ## Credentials and project content
 
-- Provider API keys are accepted through a hidden prompt or the environment variable listed for that connector. Robinhood does not persist them to its database. There is no OS-vault integration yet.
+- Provider credentials come from supported browser authorization, a hidden prompt, or the documented environment variable. Interactive connections are stored in Windows Credential Manager, macOS Keychain, or Linux Secret Service. There is no plaintext fallback: unavailable vaults mean process-only connections. Environment credentials are never copied into the vault. Credentials are not stored in the session database.
+- Saved accounts are shared across Robinhood workspaces and data directories for the current OS user. `/disconnect PROVIDER` removes the saved credential; revoke it at the provider to invalidate it remotely. Environment credentials will reload on restart if still set.
+- Browser authorization binds a temporary loopback listener to 127.0.0.1, validates a random callback path and Host, accepts one response, expires after three minutes, and closes on cancellation. OpenRouter additionally uses S256 PKCE. Puter's experimental authme flow returns a bearer token through the callback; it can appear in browser history. Robinhood never requests Google passwords or imports browser cookies.
 - Known keys are redacted from model-visible messages, saved tool results, terminal output, and exports. This is not a general-purpose scanner for every secret in source code.
 - Sessions contain prompts, model responses, tool arguments/results, and workspace paths. They are local but are not encrypted by Robinhood.
 - Default storage is `%LOCALAPPDATA%\Robinhood` on Windows, `~/Library/Application Support/Robinhood` on macOS, or `$XDG_DATA_HOME/robinhood` / `~/.local/share/robinhood` on Linux. `--data-dir` overrides it.

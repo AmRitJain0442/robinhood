@@ -21,11 +21,18 @@
   },
   "dependencies": {
     "better-sqlite3": "13.0.3",
-    "eventsource-parser": "4.1.0"
+    "eventsource-parser": "4.1.0",
+    "ink": "7.1.1",
+    "open": "11.0.4",
+    "react": "19.3.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "9.6.0",
     "@types/node": "24.13.4",
+    "@types/react": "19.3.0",
     "typescript": "6.0.3"
+  },
+  "optionalDependencies": {
+    "@napi-rs/keyring": "2.1.0"
   }
 }

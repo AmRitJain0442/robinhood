@@ -46,11 +46,13 @@ Robinhood uses your current directory as the workspace. You can also run `robinh
 
 Inside the terminal:
 
-1. Run `/connect PROVIDER` (for example, `/connect openrouter` or `/connect gemini`) and enter the provider API key in the hidden prompt. The key stays in this process. Kilo and AI Horde accept a blank key for anonymous access. Cloudflare also asks for an account ID. Provider-specific environment keys are listed in the integration ledger.
-2. Run `/models PROVIDER` to list supported models and the provider's access policy.
-3. Run `/use PROVIDER MODEL_ID`, using an exact model ID from that list. Existing task memory stays in the session.
-4. Describe a task. Review and approve each requested tool operation.
-5. Use `/sessions` and `/resume ID` to recover your task in the same workspace after restarting. Reconnect and select a model in the new process.
+1. Run `/connect` (or `/accounts`) to search all 25 providers. OpenRouter supports browser authorization; Puter has an experimental browser login. Choose Google on the provider's sign-in page if offered. Kilo and AI Horde also offer anonymous access.
+2. For other providers, choose **Open official account setup**, sign in on their site, and paste an API credential once. Credentials are saved in your OS vault and restored on launch. If the vault is unavailable, the connection lasts for the current process only. Environment credentials take precedence.
+3. Run `/models` to search and select a model, or `/use PROVIDER MODEL_ID` to switch directly. Task memory stays in the session.
+4. Describe a task. Review and approve each requested tool operation. Use Page Up / Page Down to inspect longer output; Ctrl+C cancels active work.
+5. Use `/sessions` and `/resume ID` to recover a task after restarting. Saved accounts reconnect; choose a model with `/models`.
+
+**One terminal, separately authorized accounts.** Google sign-in to one provider cannot authorize unrelated providers. Robinhood does not pool or transfer credits, create accounts automatically, bypass quotas, or treat consumer subscriptions as API allowances. See [account linking](docs/ACCOUNTS.md) for supported methods and limitations.
 
 OpenRouter pricing is checked before every request; only explicit zero-priced `:free` routes qualify automatically. Other connectors may have account-dependent free tiers or credits. Those require explicit confirmation for each request and are not counted as verified free access. See the [access policy](docs/INTEGRATIONS.md#free-access-versus-account-dependent-access).
 
@@ -60,7 +62,8 @@ Your conversation and approved tool results are sent to the selected provider an
 
 | Area | Implemented behavior |
 | --- | --- |
-| Terminal | Streaming replies, hidden API-key entry, cancellation, and commands for saved sessions |
+| Terminal | Full-screen interface, responsive account/status panel, searchable account and model pickers, streaming replies, and scrollable history |
+| Accounts | OpenRouter browser authorization, experimental Puter browser login, anonymous Kilo/Horde, and OS-vault credential persistence |
 | Provider connectors | See the [integration ledger](docs/INTEGRATIONS.md) for protocols, access gates, and validation status |
 | Memory | SQLite conversation, objective, usage observations, and durable tool receipts |
 | Tools | List a directory, read a file, create/replace a file with a hash check, and run a bounded approved command |

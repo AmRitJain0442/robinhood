@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-import { createInterface, type Interface } from 'node:readline/promises';
-import { Writable } from 'node:stream';
+import { setupGuides, accountPriority } from './auth/catalog.js';
+import { Terminal } from './ui/terminal.js';
+import { systemVault, type AccountVault, type SavedAccount } from './auth/vault.js';
+import { browserLogin, openBrowser, openRouterFlow, puterFlow } from './auth/browser.js';
 import { parseArgs } from 'node:util';
 import { homedir } from 'node:os';
 import { realpath, writeFile } from 'node:fs/promises';
@@ -23,9 +25,10 @@ const help = `Robinhood 0.0.1 / developer preview
 Options: --workspace PATH, --data-dir PATH, --session ID, --help, --version
 
 In the terminal:
-  /connect PROVIDER       Enter an API key without echo; kept in this process only
-  /models [PROVIDER]      List supported models and their access policy
+  /connect PROVIDER       Link an account; browser login where supported
+  /models [PROVIDER]      Search and select a supported model
   /use [PROVIDER] MODEL   Switch the current session to a connected provider/model
+  /accounts               Search and link provider accounts
   /providers              Connection and selected route
   /new                    Start a new task with your next message
   /sessions               List saved sessions
@@ -38,7 +41,7 @@ In the terminal:
   /status                 Inspect locally observed requests and usage
   /export PATH            Export this session after confirmation; never overwrite a file
   /delete                 Delete this session after confirmation
-  /disconnect             Drop this process's provider connection
+  /disconnect             Unlink account and remove its saved credential
   /quit                   Save and exit
 
 Providers: ${providers.map(provider => provider.id).join(', ')}.
@@ -46,44 +49,6 @@ Account-dependent routes require explicit confirmation for each request.
 Provider integration does not guarantee free account eligibility or remaining tokens.
 All tool calls require approval. Approved commands have your OS privileges.
 Ctrl+C cancels an active turn; Ctrl+C at the prompt exits. No telemetry.`;
-
-class Terminal {
-  readonly rl: Interface;
-  private muted = false;
-  private closed = false;
-  private readonly ended: Promise<never>;
-  private end!: (reason: Error) => void;
-  private streaming = false;
-  constructor(private readonly secrets: Secrets) {
-    const sink = new Writable({ write: (chunk, _encoding, done) => { if (!this.muted) process.stdout.write(chunk); done(); } });
-    Object.assign(sink, { isTTY: true, columns: process.stdout.columns });
-    this.rl = createInterface({ input: process.stdin, output: sink, terminal: true, historySize: 0 });
-    this.ended = new Promise((_, reject) => { this.end = reject; });
-    void this.ended.catch(() => {});
-    this.rl.on('close', () => { this.closed = true; this.end(new Error('Terminal closed.')); });
-  }
-  line(text: string): void {
-    if (this.streaming) { process.stdout.write('\n'); this.streaming = false; }
-    process.stdout.write(`${terminalText(this.secrets.redact(text))}\n`);
-  }
-  text(text: string): void {
-    if (!this.streaming) { process.stdout.write('\nAssistant  '); this.streaming = true; }
-    process.stdout.write(terminalText(this.secrets.redact(text)));
-  }
-  async question(prompt: string, signal?: AbortSignal): Promise<string> {
-    if (this.closed) throw new Error('Terminal closed.');
-    if (this.streaming) { process.stdout.write('\n'); this.streaming = false; }
-    return Promise.race([this.rl.question(prompt, { signal }), this.ended]);
-  }
-  async password(name: string): Promise<string> {
-    this.line('API key stays in this process; it is never written to the session database.');
-    process.stdout.write(`${name} API key (hidden): `);
-    this.muted = true;
-    try { return (await this.question('')).trim(); }
-    finally { this.muted = false; process.stdout.write('\n'); }
-  }
-  close(): void { this.rl.close(); }
-}
 
 function dataPath(): string {
   if (process.platform === 'win32') return path.join(process.env.LOCALAPPDATA ?? path.join(homedir(), 'AppData', 'Local'), 'Robinhood');
@@ -106,6 +71,7 @@ async function main(): Promise<void> {
   let selectedProvider = 'openrouter';
   let routes: Route[] = [];
   let active: AbortController | undefined;
+  let vault: AccountVault | undefined;
   const interrupt = () => { if (active) active.abort(new Error('Cancelled by user')); else terminal.close(); };
   terminal.rl.on('SIGINT', interrupt);
   process.on('SIGINT', interrupt);
@@ -127,19 +93,28 @@ async function main(): Promise<void> {
     terminal.line(`Resumed ${session.id}\nObjective: ${session.objective}`);
   };
   const required = (): Session => { if (!current) throw new Error('Start a task or /resume a saved session first.'); return current; };
+  const listModels = async (connection: Connector) => {
+    active = new AbortController();
+    try { const models = await connection.models(active.signal); active.signal.throwIfAborted(); return models; }
+    finally { active = undefined; }
+  };
   try {
-    terminal.line(`\nROBINHOOD / developer preview\nWorkspace: ${workspace}\n${providers.length} provider connectors. /providers for access policies; /connect PROVIDER to begin.`);
+    terminal.line(`Your workspace. Your accounts.\n${workspace}\n\n/connect   Link an account or start without login\n/models    Search models across a connected provider\n/help      Commands, memory and approvals`);
+    try { vault = await systemVault(); } catch { terminal.line('OS credential vault unavailable. Connections will last for this process only.'); }
     for (const entry of providers) {
-      const key = process.env[entry.env];
-      if (!key) continue;
+      let saved: SavedAccount | undefined;
+      try { saved = await vault?.load(entry.id); } catch { terminal.line(`Could not restore ${entry.id} from the OS vault; reconnect if needed.`); }
+      const key = process.env[entry.env] ?? saved?.key;
+      if (key === undefined) continue;
       secrets.add(key);
       try {
-        connections.set(entry.id, entry.create(key, entry.configuration ? process.env[entry.configuration.env] : undefined));
-        terminal.line(`Loaded ${entry.env} for this process. ${entry.access}.`);
+        connections.set(entry.id, entry.create(key, entry.configuration ? process.env[entry.configuration.env] ?? saved?.configuration : undefined));
+        terminal.line(`Restored ${entry.name} (${process.env[entry.env] ? 'environment' : 'OS vault'}).`);
       } catch { terminal.line(`Could not configure ${entry.name}; use /connect ${entry.id} to complete setup.`); }
     }
     if (values.session) load(values.session);
     while (true) {
+      terminal.setContext({ workspace, route: routes[0]?.id ?? 'Choose a model ? /models', accounts: connections.size, session: current?.id ?? 'New task' });
       let input: string;
       try { input = (await terminal.question('\nYou > ')).trim(); } catch { break; }
       if (!input) continue;
@@ -148,25 +123,56 @@ async function main(): Promise<void> {
         const argument = pieces.join(' ');
         if (command === '/quit' || command === '/exit') break;
         if (command === '/help') { terminal.line(help); continue; }
-        if (command === '/connect') {
-          const entry = providerDefinition(argument || 'openrouter');
-          terminal.line(`Your task context and approved tool results will be sent to ${entry.name} and any upstream providers it uses. ${entry.access}.`);
-          const key = await terminal.password(entry.name);
-          if (!key && !entry.anonymous) throw new Error('No key entered.');
+        if (command === '/connect' || command === '/accounts') {
+          const id = argument || await terminal.select('Link an account ? type to search', [...providers].sort((a, b) => accountPriority(a.id) - accountPriority(b.id)).map(entry => ({ value: entry.id, label: entry.name, detail: `${connections.has(entry.id) ? 'connected ? ' : ''}${['openrouter', 'puter'].includes(entry.id) ? 'browser sign-in' : entry.anonymous ? 'no login available' : 'one-time API credential'}` })));
+          const entry = providerDefinition(id);
+          const flow = id === 'openrouter' ? openRouterFlow : id === 'puter' ? puterFlow : undefined;
+          const method = await terminal.select(`Connect ${entry.name}`, [
+            ...(flow ? [{ value: 'browser', label: 'Sign in with your browser', detail: id === 'puter' ? 'experimental Puter integration' : 'authorize Robinhood on OpenRouter' }] : []),
+            ...(entry.anonymous ? [{ value: 'anonymous', label: 'Continue without an account', detail: 'shared limits apply' }] : []),
+            { value: 'key', label: 'Use an API credential', detail: 'saved in your OS credential vault' },
+            ...(setupGuides[id] ? [{ value: 'setup', label: 'Open official account setup', detail: 'sign in there, then paste a credential once' }] : []),
+          ]);
+          terminal.line(`Task context goes to ${entry.name} and its upstream services. ${entry.access}.`);
+          let key = '';
+          if (method === 'browser' && flow) {
+            active = new AbortController();
+            terminal.line('Opening provider sign-in. Use Google there if offered. Authorize this provider once; Ctrl+C cancels.');
+            try {
+              key = await browserLogin(flow, async url => {
+                terminal.line(`If your browser does not open, visit:\n${url}`);
+                try { await openBrowser(url); } catch { terminal.line('Automatic browser launch failed. Open the URL above manually.'); }
+              }, active.signal);
+            } finally { active = undefined; }
+          } else if (method === 'key' || method === 'setup') {
+            if (method === 'setup') {
+              terminal.line(`Official setup: ${setupGuides[id]}`);
+              try { await openBrowser(setupGuides[id]!); } catch { terminal.line('Open the setup URL above manually.'); }
+            }
+            terminal.line(`Create a credential in your ${entry.name} account, then paste it here. A Google session does not grant API access to unrelated providers.`);
+            key = (await terminal.password(entry.name)).trim();
+            if (!key) throw new Error('No credential entered. Existing connection was kept.');
+          }
           if (key) secrets.add(key);
           const configuration = entry.configuration ? process.env[entry.configuration.env] ?? (await terminal.question(`${entry.configuration.prompt}: `)).trim() : undefined;
-          connections.set(entry.id, entry.create(key, configuration));
+          const connection = entry.create(key, configuration);
+          connections.set(entry.id, connection);
           selectedProvider = entry.id;
           routes = [];
-          terminal.line('Key loaded. API access will be checked on your first request. Use /models, then /use MODEL.');
+          if (vault) {
+            try { await vault.save(entry.id, { key, configuration, method }); terminal.line('Account linked and saved in the OS credential vault.'); }
+            catch { terminal.line('Connected for this process only: the OS vault could not save this credential. Any older saved credential remains unchanged.'); }
+          } else terminal.line('Connected for this process only: no OS credential vault is available.');
+          terminal.line('Use /models to choose a model. Access and remaining allowance are checked by the provider; linking does not create credits.');
           continue;
         }
         if (command === '/disconnect') {
           const id = argument || selectedProvider;
           providerDefinition(id);
+          if (vault) await vault.remove(id);
           connections.delete(id);
           routes = routes.filter(route => route.provider !== id);
-          terminal.line(`${id} connection dropped. Other connected providers remain available.`);
+          terminal.line(`${id} unlinked and saved credential removed. Environment credentials, if set, will reload on restart.`);
           continue;
         }
         if (command === '/models') {
@@ -174,8 +180,12 @@ async function main(): Promise<void> {
           const entry = providerDefinition(id);
           const connection = connections.get(id) ?? (id === 'openrouter' ? new OpenRouter('') : undefined);
           if (!connection) throw new Error(`Use /connect ${id} first.`);
-          const models = await connection.models();
-          terminal.line(`${entry.name}: ${entry.access}\n${models.length ? models.map(model => `${model.id}  (context ${model.context.toLocaleString()})`).join('\n') : 'No supported models are currently available.'}`);
+          const models = await listModels(connection);
+          if (!models.length) throw new Error('No supported models are currently available.');
+          const model = await terminal.select(`${entry.name} ? choose a model`, models.map(model => ({ value: model.id, label: model.id, detail: `${model.context.toLocaleString()} context` })));
+          if (!connections.has(id)) throw new Error(`Use /connect ${id} before selecting a model.`);
+          routes = [connection.route(model)]; selectedProvider = id;
+          terminal.line(`Selected ${id}/${model}. ${entry.access}.`);
           continue;
         }
         if (command === '/use' || command === '/switch') {
@@ -184,7 +194,7 @@ async function main(): Promise<void> {
           const entry = providerDefinition(id);
           const connection = connections.get(id);
           if (!connection) throw new Error(`Use /connect ${id} first.`);
-          if (!(await connection.models()).some(item => item.id === model)) throw new Error(`Choose a model ID from /models ${id}.`);
+          if (!(await listModels(connection)).some(item => item.id === model)) throw new Error(`Choose a model ID from /models ${id}.`);
           routes = [connection.route(model)];
           selectedProvider = id;
           terminal.line(`Selected ${id}/${model}. ${entry.access}. Saved task history stays in this session.`);
