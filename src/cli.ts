@@ -25,7 +25,7 @@ const help = `Robinhood 0.0.1 / developer preview
 Options: --workspace PATH, --data-dir PATH, --session ID, --help, --version
 
 In the terminal:
-  /connect PROVIDER       Link an account; browser login where supported
+  /connect [PROVIDER]     Link an account; browser login where supported
   /models [PROVIDER]      Search and select a supported model
   /use [PROVIDER] MODEL   Switch the current session to a connected provider/model
   /accounts               Search and link provider accounts
@@ -114,7 +114,7 @@ async function main(): Promise<void> {
     }
     if (values.session) load(values.session);
     while (true) {
-      terminal.setContext({ workspace, route: routes[0]?.id ?? 'Choose a model ? /models', accounts: connections.size, session: current?.id ?? 'New task' });
+      terminal.setContext({ workspace, route: routes[0]?.id ?? 'Choose a model /models', accounts: connections.size, session: current?.id ?? 'New task' });
       let input: string;
       try { input = (await terminal.question('\nYou > ')).trim(); } catch { break; }
       if (!input) continue;
@@ -124,7 +124,7 @@ async function main(): Promise<void> {
         if (command === '/quit' || command === '/exit') break;
         if (command === '/help') { terminal.line(help); continue; }
         if (command === '/connect' || command === '/accounts') {
-          const id = argument || await terminal.select('Link an account ? type to search', [...providers].sort((a, b) => accountPriority(a.id) - accountPriority(b.id)).map(entry => ({ value: entry.id, label: entry.name, detail: `${connections.has(entry.id) ? 'connected ? ' : ''}${['openrouter', 'puter'].includes(entry.id) ? 'browser sign-in' : entry.anonymous ? 'no login available' : 'one-time API credential'}` })));
+          const id = argument || await terminal.select('Link an account - type to search', [...providers].sort((a, b) => accountPriority(a.id) - accountPriority(b.id)).map(entry => ({ value: entry.id, label: entry.name, detail: `${connections.has(entry.id) ? 'connected / ' : ''}${['openrouter', 'puter'].includes(entry.id) ? 'browser sign-in' : entry.anonymous ? 'no login available' : 'one-time API credential'}` })));
           const entry = providerDefinition(id);
           const flow = id === 'openrouter' ? openRouterFlow : id === 'puter' ? puterFlow : undefined;
           const method = await terminal.select(`Connect ${entry.name}`, [
@@ -182,7 +182,7 @@ async function main(): Promise<void> {
           if (!connection) throw new Error(`Use /connect ${id} first.`);
           const models = await listModels(connection);
           if (!models.length) throw new Error('No supported models are currently available.');
-          const model = await terminal.select(`${entry.name} ? choose a model`, models.map(model => ({ value: model.id, label: model.id, detail: `${model.context.toLocaleString()} context` })));
+          const model = await terminal.select(`${entry.name} - choose a model`, models.map(model => ({ value: model.id, label: model.id, detail: `${model.context.toLocaleString()} context` })));
           if (!connections.has(id)) throw new Error(`Use /connect ${id} before selecting a model.`);
           routes = [connection.route(model)]; selectedProvider = id;
           terminal.line(`Selected ${id}/${model}. ${entry.access}.`);
