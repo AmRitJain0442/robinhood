@@ -17,7 +17,7 @@ import { Secrets, terminalText } from './privacy.js';
 import { workspaceIdentity } from './tools.js';
 import { demo } from './demo.js';
 import type { Connector, Route, Session } from './types.js';
-import { Capabilities } from './capabilities.js';
+import { Capabilities, type Todo } from './capabilities.js';
 import { compactSession } from './context.js';
 import { systemPrompt, systemPromptHash } from './prompt.js';
 import { Jobs } from './jobs.js';
@@ -61,6 +61,7 @@ In the terminal:
   /plugin FILE           Load an explicitly trusted local JavaScript plugin
   /mcp CONFIG.json       Connect an explicitly trusted MCP server
   /extensions            List loaded extensions; /unload NAME disconnects one
+  /capabilities          Inspect the currently available tool catalog
   /delegate TASK          Run a read-only research agent and bring back its report
   /search TEXT            Search saved session objectives and conversation text
   /terminals              List persistent shells; /terminal-close ID stops one
@@ -150,7 +151,8 @@ async function main(): Promise<void> {
     }
     if (values.session) load(values.session);
     while (true) {
-      terminal.setContext({ workspace, route: routes[0]?.id ?? 'Choose a model /models', accounts: connections.size, session: current?.id ?? 'New task' });
+      const todos = current ? store.state<Todo[]>(current.id, 'todos', []) : [];
+      terminal.setContext({ workspace, route: routes[0]?.id ?? 'Choose a model /models', accounts: connections.size, session: current?.id ?? 'New task', mode: current && store.state(current.id, 'plan-mode', false) ? 'PLAN · read only' : 'EXECUTE', tasks: todos.length ? `${todos.filter(todo => todo.status === 'completed').length}/${todos.length} tasks` : 'No checklist', workers: current ? capabilities.jobs.list(store, current).filter(job => job.status === 'running').length + capabilities.terminals.list(store, current).filter(terminal => terminal.status === 'running').length : 0 });
       let input: string;
       try { input = (await terminal.question('\nYou > ')).trim(); } catch { break; }
       if (!input) continue;
@@ -300,6 +302,7 @@ async function main(): Promise<void> {
           terminal.line('Skill activated for this session. It supplies instructions, not additional permissions.'); continue;
         }
         if (command === '/extensions') { terminal.line(capabilities.names().join('\n') || 'No extensions loaded.'); continue; }
+        if (command === '/capabilities') { terminal.line(capabilities.catalog(Boolean(current && store.state(current.id, 'plan-mode', false))).map(tool => `${tool.function.name}: ${tool.function.description ?? ''}`).join('\n')); continue; }
         if (command === '/unload') { await capabilities.unload(argument); terminal.line(`Unloaded ${argument}.`); continue; }
         if (command === '/plugin' || command === '/mcp') {
           if (!argument) throw new Error(`Use ${command} FILE.`);

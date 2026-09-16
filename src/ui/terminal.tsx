@@ -5,7 +5,7 @@ import { Secrets, terminalText } from '../privacy.js';
 
 export interface Choice { value: string; label: string; detail?: string }
 type Prompt = { label: string; hidden: boolean; choices?: Choice[] };
-interface State { lines: string[]; prompt?: Prompt; workspace: string; route: string; accounts: number; session: string }
+interface State { lines: string[]; prompt?: Prompt; workspace: string; route: string; accounts: number; session: string; mode?: string; tasks?: string; workers?: number }
 const green = '#b5ef63';
 
 export class Terminal {
@@ -125,8 +125,9 @@ function Screen({ terminal }: { terminal: Terminal }) {
         <Text color={green} bold>MODEL</Text><Text>{state.route}</Text><Text> </Text>
         <Text color={green} bold>ACCOUNTS</Text><Text>{state.accounts} connected · /accounts</Text><Text dimColor>Remaining tokens: unknown</Text><Text> </Text>
         <Text color={green} bold>MEMORY</Text><Text wrap="truncate">{state.session}</Text><Text dimColor>Saved locally · /memory</Text>
+        <Text> </Text><Text color={green} bold>{state.mode ?? 'EXECUTE'}</Text><Text>{state.tasks ?? 'No checklist'} · {state.workers ?? 0} workers</Text><Text dimColor>/plan · /todos · /jobs</Text>
       </Box>}
     </Box>
-    <Text dimColor> {state.accounts} accounts · {wide ? 'Approvals stay in your control' : state.route} · PgUp/PgDn scroll · /help</Text>
+    <Text dimColor> {state.mode ?? 'EXECUTE'} · {state.accounts} accounts · {wide ? 'Approvals stay in your control' : state.route} · PgUp/PgDn scroll · /help</Text>
   </Box>;
 }
