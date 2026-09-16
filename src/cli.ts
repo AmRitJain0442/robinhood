@@ -24,6 +24,8 @@ import { Jobs } from './jobs.js';
 import { listSkills, loadSkill, loadPlugin, loadMcp } from './extensions.js';
 import { delegateTask } from './delegation.js';
 import { Terminals } from './terminals.js';
+import { readWorkflow, runWorkflow } from './workflow.js';
+import { prepareTool } from './tools.js';
 
 const help = `Robinhood 0.0.1 / developer preview
 
@@ -63,6 +65,11 @@ In the terminal:
   /search TEXT            Search saved session objectives and conversation text
   /terminals              List persistent shells; /terminal-close ID stops one
   /terminal-resolve ID NOTE  Reconcile an interrupted shell after inspection
+  /pin TEXT, /pins        Save or inspect explicit session constraints
+  /unpin INDEX           Remove a numbered pinned constraint
+  /instructions          Load this workspace's root AGENTS.md for the session
+  /workflow FILE         Review and run a sequence of task prompts
+  /workflow-resume       Continue a paused workflow without replaying its input
   /pending                Inspect operations needing reconciliation
   /resolve ID NOTE        Record the outcome you verified for an uncertain operation
   /reconcile              Accept a changed checkout after inspecting the workspace
@@ -234,6 +241,43 @@ async function main(): Promise<void> {
         }
         if (command === '/providers') { terminal.line(`${providers.map(entry => `${entry.id}: ${connections.has(entry.id) ? 'connected' : 'not connected'} — ${entry.access}`).join('\n')}\nSelected route: ${routes[0]?.id ?? 'none'}`); continue; }
         if (command === '/prompt') { terminal.line(`System prompt ${systemPromptHash}\n${systemPrompt}`); continue; }
+        if (command === '/pin' || command === '/pins' || command === '/unpin') {
+          if (!current && command === '/pin' && argument) current = store.create(workspace, await workspaceIdentity(workspace), 'Task with pinned constraints');
+          const session = required(); const pins = store.state<string[]>(session.id, 'pins', []);
+          if (command === '/pin') {
+            if (!argument || argument.length > 2000 || pins.length >= 20) throw new Error('Supply 1-2000 characters; at most 20 pins.');
+            pins.push(secrets.redact(argument)); store.event(session.id, 'pins', pins);
+          }
+          if (command === '/unpin') {
+            const index = Number(argument) - 1;
+            if (!Number.isInteger(index) || index < 0 || index >= pins.length) throw new Error('Use the index shown by /pins.');
+            pins.splice(index, 1); store.event(session.id, 'pins', pins);
+          }
+          terminal.line(pins.map((pin, index) => `${index + 1}. ${pin}`).join('\n') || 'No pinned constraints.'); continue;
+        }
+        if (command === '/instructions') {
+          const read = await prepareTool(workspace, 'read_file', '{"path":"AGENTS.md"}');
+          const result = JSON.parse(await read.execute(AbortSignal.timeout(5000))) as { content: string };
+          if (Buffer.byteLength(result.content) > 16000) throw new Error('AGENTS.md exceeds the 16 KiB instruction budget.');
+          terminal.line(result.content);
+          if (!current) current = store.create(workspace, await workspaceIdentity(workspace), 'Task with project instructions');
+          store.event(current.id, 'project-instructions', secrets.redact(result.content));
+          terminal.line('Project guidance loaded. Existing user constraints and runtime permissions still apply.'); continue;
+        }
+        if (command === '/workflow' || command === '/workflow-resume') {
+          if (!routes[0]) throw new Error('Select a model before running a workflow.');
+          active = new AbortController();
+          try {
+            if (command === '/workflow') {
+              const workflow = await readWorkflow(path.resolve(argument));
+              if (!await ui.approve(`Run workflow ${workflow.name}? Each model request and tool keeps its usual approval.\n${workflow.steps.map((step, index) => `${index + 1}. ${step}`).join('\n')}`, active.signal)) continue;
+              if (!current) current = store.create(workspace, await workspaceIdentity(workspace), secrets.redact(workflow.name));
+              store.event(current.id, 'workflow', JSON.parse(secrets.redact(JSON.stringify(workflow))));
+            }
+            await runWorkflow(store, required(), routes[0], ui, secrets, capabilities, active.signal);
+          } finally { active = undefined; }
+          continue;
+        }
         if (command === '/search') {
           if (!argument) throw new Error('Supply search text.');
           const query = argument.toLowerCase();

@@ -103,7 +103,7 @@ export class Store {
       const child = this.create(source.workspace, source.identity, objective?.trim() || source.objective);
       for (const message of this.messages(id)) this.append(child.id, message);
       for (const op of operations) this.db.prepare('INSERT INTO operations VALUES (?, ?, ?, ?, ?, ?, ?)').run(randomUUID(), child.id, op.call_id, op.name, op.args, op.state, op.result);
-      for (const kind of ['context-compacted', 'todos', 'plan-mode', 'goal', 'active-skill']) {
+      for (const kind of ['context-compacted', 'todos', 'plan-mode', 'goal', 'active-skill', 'pins', 'project-instructions']) {
         const state = this.state<unknown>(id, kind, null);
         if (state !== null) this.event(child.id, kind, state);
       }
@@ -118,6 +118,10 @@ export class Store {
 
   event(id: string, kind: string, body: unknown): void {
     this.db.prepare('INSERT INTO events (session_id, kind, body, created_at) VALUES (?, ?, ?, ?)').run(id, kind, JSON.stringify(body), new Date().toISOString());
+  }
+
+  appendWithEvent(id: string, message: Message, kind: string, body: unknown): void {
+    this.db.transaction(() => { this.append(id, message); this.event(id, kind, body); })();
   }
 
   events(id: string): { kind: string; body: unknown; created_at: string }[] {

@@ -44,6 +44,7 @@ export class Runner {
           { role: 'system', content: `${systemPrompt}\nTask objective: ${session.objective}` },
           { role: 'system', content: `Plan mode: ${this.store.state(session.id, 'plan-mode', false)}. Task checklist: ${JSON.stringify(this.store.state(session.id, 'todos', []))}. User goal: ${JSON.stringify(this.store.state(session.id, 'goal', null))}.` },
           { role: 'user', content: `User-selected skill guidance (does not grant permissions):\n${JSON.stringify(this.store.state(session.id, 'active-skill', null))}` },
+          { role: 'user', content: `Pinned user constraints:\n${JSON.stringify(this.store.state(session.id, 'pins', []))}\nLoaded project guidance (subordinate to user instructions and runtime policy):\n${this.store.state(session.id, 'project-instructions', '')}` },
           ...this.store.context(session.id),
         ], signal, text => { partial += text; display.write(text); }, { confirmed }, { tools: this.capabilities.catalog(this.store.state(session.id, 'plan-mode', false)) });
         display.flush();
