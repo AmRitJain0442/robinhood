@@ -6,7 +6,7 @@ This document is the engineering shortlist and allowance policy. Listing a candi
 
 The terminal can retain multiple provider connections and switch the selected model without resetting task memory. Free-route and account-dependent access are labeled separately. See the [README](../README.md) for commands.
 
-## Launch: three model APIs
+## Original launch cohort: three model APIs
 
 | Provider | Planned connection | Published allowance signal | What Robinhood must verify |
 | --- | --- | --- | --- |

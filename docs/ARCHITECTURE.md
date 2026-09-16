@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** the [runtime decision](decisions/0001-direct-runtime.md) selects a direct TypeScript request loop. A first OpenRouter slice is implemented. This document also describes the broader target architecture; unimplemented provider policies, context compaction, and richer UI remain in the [delivery plan](PLAN.md).
+**Status:** the [runtime decision](decisions/0001-direct-runtime.md) selects a direct TypeScript request loop. The terminal now has 25 cloud API connectors sharing a local journal; see the [integration ledger](INTEGRATIONS.md) for protocol and validation limits. This document also describes the broader target architecture; unimplemented provider policies, context compaction, and richer UI remain in the [delivery plan](PLAN.md).
 
 ## System shape
 

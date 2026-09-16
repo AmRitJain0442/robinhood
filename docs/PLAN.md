@@ -4,13 +4,14 @@
 - **Stage:** first developer preview implemented; broader release gates remain open
 - **Initial maintainer:** [AmRitJain0442](https://github.com/AmRitJain0442)
 
-## Implementation snapshot — 2026-09-15
+## Implementation snapshot - 2026-09-16
 
 - **M0 complete:** public repository and product foundation.
-- **M1 runtime decision complete:** tested pinned OpenCode on native Windows and chose the [direct request runtime](decisions/0001-direct-runtime.md). Real-account and remaining platform/provider feasibility checks are still pending.
-- **M2 first slice implemented:** interactive terminal, OpenRouter connector, streaming replies, approved tools, SQLite persistence, export/delete, and uncertain-outcome recovery. Real-account inference is not yet verified.
-- **Handoff mechanism tested with fixtures:** simulated quota exhaustion preserves a completed tool receipt. This does not complete M3/M4 or establish live multi-provider support.
-- **Pending:** Gemini/Groq, account-specific allowance groups and cooldowns, long-context compaction, richer UI, real-account validation, and release hardening.
+- **M1 runtime decision complete:** tested pinned OpenCode on native Windows and chose the [direct request runtime](decisions/0001-direct-runtime.md).
+- **M2 preview implemented:** interactive terminal, approved tools, SQLite persistence, export/delete, and uncertain-outcome recovery.
+- **Cloud API expansion implemented:** 25 connectors share the task journal. Puter is experimental; AI Horde is text-only. See the [integration ledger](INTEGRATIONS.md) for reviewed models, authentication, and validation limits.
+- **Validation:** 55 local behavioral tests and the offline restart/handoff demo pass. Kilo's anonymous plain-text smoke test succeeded; a later live tool probe hit a rate limit. Other authenticated inference remains unverified.
+- **Pending:** official agent bridges and browser login, account-specific allowance groups and cooldowns, automatic live fallback, long-context compaction, richer UI, real-account validation, and release hardening. Adapter implementation alone does not complete M3/M4 release gates.
 
 The milestones below remain the end-to-end target. An implemented preview feature does not imply its beta/release gates are complete.
 
