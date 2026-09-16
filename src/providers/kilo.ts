@@ -18,11 +18,11 @@ export class Kilo implements Connector {
   route(model: string): Route {
     return { id: `kilo/${model}`, provider: 'kilo', model,
       manualApproval: 'Kilo free endpoints may retain prompts for model improvement. Use only public, non-confidential task data; NVIDIA endpoints are trial use only.',
-      complete: async (messages, signal, onText, consent) => {
+      complete: async (messages, signal, onText, consent, options) => {
         manualConsent(consent);
         const selected = (await this.models(AbortSignal.any([signal, AbortSignal.timeout(15_000)]))).find(item => item.id === model);
         if (!selected) throw new RouteError('Selected Kilo model is not an explicit, currently zero-priced tool route.', 'policy');
-        const body = { model, messages: chatMessages(messages, 'kilo', model), tools: toolDefinitions, tool_choice: 'auto', stream: true, max_tokens: 2048 };
+        const body = { model, messages: chatMessages(messages, 'kilo', model), tools: options?.tools ?? toolDefinitions, tool_choice: 'auto', stream: true, max_tokens: 2048 };
         contextBudget(body, selected.context);
         const response = await fetch(`${this.baseURL}/chat/completions`, { method: 'POST', headers: { 'content-type': 'application/json', ...(this.key ? { Authorization: `Bearer ${this.key}` } : {}) }, body: JSON.stringify(body), signal: AbortSignal.any([signal, AbortSignal.timeout(120_000)]), redirect: 'error' });
         return parseCompletion(response, onText, { provider: 'kilo', model });

@@ -16,10 +16,10 @@ export class Puter implements Connector {
   route(model: string): Route {
     return { id: `puter/${model}`, provider: 'puter', model,
       manualApproval: 'This request uses your Puter user allowance. Remaining free balance is unverified and funded accounts may be charged.',
-      complete: async (messages, signal, onText, consent) => {
+      complete: async (messages, signal, onText, consent, options) => {
         manualConsent(consent);
         if (!(await this.models()).some(item => item.id === model)) throw new RouteError('Choose a reviewed Puter model from /models puter.', 'policy');
-        const args = { messages: chatMessages(messages, 'puter', model), model, provider: 'openai', tools: toolDefinitions, stream: false, normalize: true, max_tokens: 2048 };
+        const args = { messages: chatMessages(messages, 'puter', model), model, provider: 'openai', tools: options?.tools ?? toolDefinitions, stream: false, normalize: true, max_tokens: 2048 };
         contextBudget(args, 64000);
         const data = object(await boundedJSON(await fetch(`${this.baseURL}/drivers/call`, {
           method: 'POST', headers: { 'content-type': 'text/plain;actually=json' },

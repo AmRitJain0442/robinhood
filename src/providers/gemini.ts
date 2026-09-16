@@ -95,11 +95,11 @@ export class Gemini implements Connector {
   route(model: string): Route {
     return { id: `gemini/${model}`, provider: 'gemini', model,
       manualApproval: 'Gemini free access depends on the Google project billing tier. Robinhood cannot verify that tier or the remaining balance. This request may consume credits or incur charges.',
-      complete: async (messages, signal, onText, consent) => {
+      complete: async (messages, signal, onText, consent, options) => {
         manualConsent(consent);
         const selected = (await this.models(AbortSignal.any([signal, AbortSignal.timeout(15_000)]))).find(item => item.id === model);
         if (!selected) throw new RouteError('Choose a supported Gemini model from /models gemini.', 'policy');
-        const body = { ...geminiHistory(messages, model), tools: [{ functionDeclarations: toolDefinitions.map(tool => ({ name: tool.function.name, description: tool.function.description, parametersJsonSchema: tool.function.parameters })) }], generationConfig: { maxOutputTokens: 2048, thinkingConfig: { includeThoughts: false } } };
+        const body = { ...geminiHistory(messages, model), tools: [{ functionDeclarations: (options?.tools ?? toolDefinitions).map(tool => ({ name: tool.function.name, description: tool.function.description, parametersJsonSchema: tool.function.parameters })) }], generationConfig: { maxOutputTokens: 2048, thinkingConfig: { includeThoughts: false } } };
         contextBudget(body, selected.context);
         const response = await fetch(`${this.baseURL}/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`, { method: 'POST', headers: { 'x-goog-api-key': this.key, 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.any([signal, AbortSignal.timeout(120_000)]), redirect: 'error' });
         return parseGemini(response, model, onText);

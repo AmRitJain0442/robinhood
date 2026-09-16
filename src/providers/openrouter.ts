@@ -36,12 +36,12 @@ export class OpenRouter {
   route(model: string): Route {
     return {
       id: `openrouter/${model}`, provider: 'openrouter', model,
-      complete: async (messages, signal, onText) => {
+      complete: async (messages, signal, onText, _consent, options) => {
         signal.throwIfAborted();
         // Refresh immediately before every request; no cached price can authorize inference.
         const selected = (await this.models(AbortSignal.any([signal, AbortSignal.timeout(15_000)]))).find(item => item.id === model);
         if (!selected) throw new RouteError('Selected model is not currently a verified free tool-capable route.', 'policy');
-        const body = { model, messages: chatMessages(messages, 'openrouter', model), tools: toolDefinitions, tool_choice: 'auto', max_tokens: 2048, stream: true, provider: { allow_fallbacks: false, require_parameters: true } };
+        const body = { model, messages: chatMessages(messages, 'openrouter', model), tools: options?.tools ?? toolDefinitions, tool_choice: 'auto', max_tokens: 2048, stream: true, provider: { allow_fallbacks: false, require_parameters: true } };
         // Byte count is a conservative context estimate, not reported provider token usage.
         if (Buffer.byteLength(JSON.stringify(body)) + 4096 > Math.min(selected.context, 64000)) throw new RouteError('Session exceeds this preview\'s conservative context budget. Automatic compaction is not implemented.', 'policy');
         if (!this.key) throw new RouteError('Connect an OpenRouter API key first.', 'auth');

@@ -23,6 +23,13 @@ export interface Completion {
   usage?: Usage;
 }
 
+export interface ToolDefinition {
+  type: string;
+  function: { name: string; description?: string; parameters: Record<string, unknown> };
+}
+
+export interface RequestOptions { tools?: ToolDefinition[] }
+
 export interface Route {
   id: string;
   provider: string;
@@ -30,7 +37,7 @@ export interface Route {
   manualApproval?: string;
   // Direct routes enforce eligibility per inference request without implicit retries.
   // External engines must disclose their own retry and eligibility-check boundaries.
-  complete(messages: Message[], signal: AbortSignal, onText: (text: string) => void, consent?: { confirmed: boolean }): Promise<Completion>;
+  complete(messages: Message[], signal: AbortSignal, onText: (text: string) => void, consent?: { confirmed: boolean }, options?: RequestOptions): Promise<Completion>;
 }
 
 export interface ModelInfo { id: string; context: number }

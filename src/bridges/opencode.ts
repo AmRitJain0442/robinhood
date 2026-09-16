@@ -5,6 +5,7 @@ import { RouteError, type Connector, type ModelInfo, type Route, type Completion
 import { object } from '../providers/chat-completions.js';
 import { contextBudget, manualConsent } from '../providers/http.js';
 import { chatMessages } from '../providers/memory.js';
+import type { ToolDefinition } from '../types.js';
 import { toolDefinitions } from '../tools.js';
 
 export const OPENCODE_VERSION = '1.18.31';
@@ -42,17 +43,18 @@ export function freeEngineModels(data: unknown, providerID = 'opencode', accepts
   });
 }
 
-export const outputSchema = {
+export function structuredSchema(tools: ToolDefinition[] = toolDefinitions) { return {
   type: 'object', additionalProperties: false, required: ['content', 'tool_calls'],
   properties: {
     content: { type: 'string' },
     tool_calls: { type: 'array', maxItems: 8, items: { type: 'object', additionalProperties: false, required: ['name', 'arguments'], properties: {
-      name: { type: 'string', enum: toolDefinitions.map(tool => tool.function.name) }, arguments: { type: 'string', description: 'A JSON-encoded object matching the requested Robinhood tool parameters.' },
+      name: { type: 'string', enum: tools.map(tool => tool.function.name) }, arguments: { type: 'string', description: 'A JSON-encoded object matching the requested Robinhood tool parameters.' },
     } } },
   },
-};
+}; }
+export const outputSchema = structuredSchema();
 
-export function engineCompletion(data: unknown, label = 'OpenCode'): Completion {
+export function engineCompletion(data: unknown, label = 'OpenCode', tools: ToolDefinition[] = toolDefinitions): Completion {
   const info = object(object(data).info);
   if (info.error) {
     const error = object(info.error), status = object(error.data).statusCode;
@@ -66,7 +68,7 @@ export function engineCompletion(data: unknown, label = 'OpenCode'): Completion 
   if (!result.content.trim() && result.tool_calls.length === 0) throw new RouteError(`${label} returned an empty response. Choose another model or try later.`, 'protocol');
   const calls = result.tool_calls.map(item => {
     const call = object(item);
-    if (!toolDefinitions.some(tool => tool.function.name === call.name) || typeof call.arguments !== 'string') throw new RouteError(`${label} returned an unsupported tool.`, 'protocol');
+    if (!tools.some(tool => tool.function.name === call.name) || typeof call.arguments !== 'string') throw new RouteError(`${label} returned an unsupported tool.`, 'protocol');
     let args: unknown; try { args = JSON.parse(call.arguments); } catch { throw new RouteError(`${label} returned invalid tool arguments.`, 'protocol'); }
     if (!args || typeof args !== 'object' || Array.isArray(args)) throw new RouteError('Expected a tool argument object.', 'protocol');
     return { id: randomUUID(), type: 'function' as const, function: { name: call.name as string, arguments: call.arguments } };
@@ -92,13 +94,14 @@ export class StructuredServerBridge implements Connector {
   route(model: string): Route {
     return { id: `${this.spec.id}/${model}`, provider: this.spec.id, model,
       manualApproval: this.spec.notice,
-      complete: async (messages, signal, onText, consent) => {
+      complete: async (messages, signal, onText, consent, options) => {
+        const tools = options?.tools ?? toolDefinitions;
         manualConsent(consent);
         const bounded = AbortSignal.any([signal, AbortSignal.timeout(120_000)]);
         const selected = (await this.models(bounded)).find(item => item.id === model);
         if (!selected) throw new RouteError(`This model is no longer advertised as free and tool-capable by ${this.spec.label}.`, 'policy');
         const history = chatMessages(messages, this.spec.id, model);
-        const prompt = `Return structured suggestions for Robinhood. Do not execute anything yourself. To inspect or change the real workspace, request the following Robinhood tools using tool_calls. Their results arrive in subsequent history. Use content for your user-facing answer; return an empty tool_calls array when finished. Historical tool receipts describe actions already performed; never replay them.\nTools: ${JSON.stringify(toolDefinitions)}\nConversation history: ${JSON.stringify(history)}`;
+        const prompt = `Return structured suggestions for Robinhood. Do not execute anything yourself. To inspect or change the real workspace, request the following Robinhood tools using tool_calls. Their results arrive in subsequent history. Use content for your user-facing answer; return an empty tool_calls array when finished. Historical tool receipts describe actions already performed; never replay them.\nTools: ${JSON.stringify(tools)}\nConversation history: ${JSON.stringify(history)}`;
         contextBudget({ prompt }, selected.context);
         const engine = this.runtime();
         let id: string | undefined;
@@ -108,8 +111,8 @@ export class StructuredServerBridge implements Connector {
           id = session.id;
           const result = engineCompletion(await engine.request(`/session/${id}/message`, 'POST', {
             model: { providerID: this.spec.providerID, modelID: model }, agent: 'robinhood',
-            format: { type: 'json_schema', schema: outputSchema, retryCount: 0 }, parts: [{ type: 'text', text: prompt }],
-          }, bounded), this.spec.label);
+            format: { type: 'json_schema', schema: structuredSchema(tools), retryCount: 0 }, parts: [{ type: 'text', text: prompt }],
+          }, bounded), this.spec.label, tools);
           if (result.message.content) onText(result.message.content);
           return result;
         } catch (error) { await this.close(); throw error; }
