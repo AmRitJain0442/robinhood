@@ -133,8 +133,10 @@ async function main(): Promise<void> {
       const key = process.env[entry.env];
       if (!key) continue;
       secrets.add(key);
-      connections.set(entry.id, entry.create(key));
-      terminal.line(`Loaded ${entry.env} for this process. ${entry.access}.`);
+      try {
+        connections.set(entry.id, entry.create(key, entry.configuration ? process.env[entry.configuration.env] : undefined));
+        terminal.line(`Loaded ${entry.env} for this process. ${entry.access}.`);
+      } catch { terminal.line(`Could not configure ${entry.name}; use /connect ${entry.id} to complete setup.`); }
     }
     if (values.session) load(values.session);
     while (true) {
@@ -152,7 +154,8 @@ async function main(): Promise<void> {
           const key = await terminal.password(entry.name);
           if (!key && !entry.anonymous) throw new Error('No key entered.');
           if (key) secrets.add(key);
-          connections.set(entry.id, entry.create(key));
+          const configuration = entry.configuration ? process.env[entry.configuration.env] ?? (await terminal.question(`${entry.configuration.prompt}: `)).trim() : undefined;
+          connections.set(entry.id, entry.create(key, configuration));
           selectedProvider = entry.id;
           routes = [];
           terminal.line('Key loaded. API access will be checked on your first request. Use /models, then /use MODEL.');

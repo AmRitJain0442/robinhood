@@ -53,3 +53,10 @@ test('Hugging Face pins a live tool-capable upstream and blocks it after withdra
     assert.equal(posts, 1);
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });
+
+
+test('Cloudflare account configuration cannot change the destination host or path', async () => {
+  const { cloudflare } = await import('../src/providers/specs/cloudflare.js');
+  for (const account of ['', '../models', 'https://evil.example', 'a'.repeat(31)]) assert.throws(() => cloudflare(account), /account ID/);
+  assert.equal(cloudflare('a'.repeat(32)).baseURL, `https://api.cloudflare.com/client/v4/accounts/${'a'.repeat(32)}/ai/v1`);
+});

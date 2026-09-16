@@ -9,7 +9,8 @@ import { Compatible, type CompatibleSpec } from '../src/providers/compatible.js'
 for (const file of await readdir(new URL('../src/providers/specs/', import.meta.url))) {
   if (!file.endsWith('.js')) continue;
   const module = await import(new URL(`../src/providers/specs/${file}`, import.meta.url).href);
-  for (const spec of Object.values(module) as CompatibleSpec[]) {
+  const specifications = file === 'cloudflare.js' ? [module.cloudflare('a'.repeat(32))] : Object.values(module);
+  for (const spec of specifications as CompatibleSpec[]) {
     if (!spec.models?.length) continue;
     test(`${spec.name}: approved tool round-trip, portable memory, quota and interruption contract`, async () => {
       let requests = 0, posts = 0, mode = 'tool';

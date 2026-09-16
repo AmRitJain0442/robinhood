@@ -1,4 +1,5 @@
 import { cohere } from './specs/cohere.js';
+import { cloudflare } from './specs/cloudflare.js';
 import { ollama } from './specs/ollama.js';
 import { alibaba } from './specs/alibaba.js';
 import { poolside } from './specs/poolside.js';
@@ -28,9 +29,11 @@ export interface ProviderDefinition {
   env: string;
   access: string;
   anonymous?: boolean;
-  create(key: string): Connector;
+  configuration?: { env: string; prompt: string };
+  create(key: string, configuration?: string): Connector;
 }
 export const providers: ProviderDefinition[] = [
+  { id: 'cloudflare', name: 'Cloudflare Workers AI', env: 'CLOUDFLARE_API_TOKEN', configuration: { env: 'CLOUDFLARE_ACCOUNT_ID', prompt: 'Cloudflare account ID' }, access: 'Account-dependent; each request needs confirmation', create: (key, account) => new Compatible(cloudflare(account ?? ''), key) },
   { id: 'cohere', name: 'Cohere', env: 'COHERE_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(cohere, key) },
   { id: 'ollama', name: 'Ollama Cloud', env: 'OLLAMA_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(ollama, key) },
   { id: 'alibaba', name: 'Alibaba Model Studio', env: 'DASHSCOPE_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(alibaba, key) },

@@ -26,6 +26,7 @@ Connectors are implemented one at a time and share the same local task journal. 
 | Alibaba Model Studio | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Ollama Cloud | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Cohere | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
+| Cloudflare Workers AI | Account-scoped Chat Completions | Account-dependent; confirmation each request | HTTP tool contracts and account-path validation; real-account inference unverified |
 
 ## Connecting multiple providers
 
@@ -169,3 +170,9 @@ References: [cloud access](https://docs.ollama.com/cloud), [compatibility API](h
 Connect with `/connect cohere` or `COHERE_API_KEY`. Uses Cohere's documented compatibility API and tool-capable Command model with a conservative 64K budget. Omits the undocumented tool_choice parameter and disables thinking. Trial access is account-dependent; no production entitlement or fixed daily token allocation is inferred.
 
 References: [compatibility API and supported parameters](https://docs.cohere.com/docs/compatibility-api), [trial limits](https://docs.cohere.com/docs/rate-limits).
+
+## Cloudflare evidence - checked 2026-09-16
+
+`/connect cloudflare` asks for an API token and account ID. Environment setup uses `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. The reviewed Llama tool model has a 24K context limit. No Worker deployment is created. The shared neuron allowance is not converted into a guaranteed daily token balance.
+
+References: [compatibility endpoint](https://developers.cloudflare.com/workers-ai/configuration/open-ai-compatibility/), [model and limits](https://developers.cloudflare.com/workers-ai/models/llama-3.3-70b-instruct-fp8-fast/), [pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/).
