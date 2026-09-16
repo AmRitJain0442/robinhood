@@ -29,10 +29,20 @@ PASS: quota handoff preserved the tool result; one command execution; session re
 
 ## Use the terminal
 
+Install the command once from your Robinhood checkout:
+
 ```sh
 npm run build
-npm start -- --workspace /path/to/your/project
+npm link
 ```
+
+Then open a terminal in any project and run:
+
+```sh
+robinhood
+```
+
+Robinhood uses your current directory as the workspace. You can also run `robinhood --workspace /path/to/project`, `robinhood --help`, or `robinhood demo`. The local installation points to this checkout; run `npm run build` here after pulling updates. Remove the command with `npm uninstall -g @amritjain0442/robinhood`.
 
 Inside the terminal:
 

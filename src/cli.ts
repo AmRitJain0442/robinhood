@@ -16,9 +16,9 @@ import type { Connector, Route, Session } from './types.js';
 
 const help = `Robinhood 0.0.1 / developer preview
 
-  npm run build
-  npm start -- --workspace <directory>
-  npm run demo                        Offline handoff demonstration
+  robinhood                           Open in the current project directory
+  robinhood --workspace <directory>    Open a specific project
+  robinhood demo                      Offline handoff demonstration
 
 Options: --workspace PATH, --data-dir PATH, --session ID, --help, --version
 
