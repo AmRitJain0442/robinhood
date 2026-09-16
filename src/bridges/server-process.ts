@@ -55,6 +55,7 @@ export class ServerProcess implements Engine {
       XDG_CONFIG_HOME: path.join(scratch, 'config'), XDG_DATA_HOME: path.join(scratch, 'data'),
       XDG_CACHE_HOME: path.join(scratch, 'cache'), XDG_STATE_HOME: path.join(scratch, 'state'),
       [`${this.runtime.envPrefix}_CONFIG_CONTENT`]: JSON.stringify(this.config), [`${this.runtime.envPrefix}_SERVER_PASSWORD`]: password,
+      [`${this.runtime.envPrefix}_SERVER_USERNAME`]: 'opencode',
       [`${this.runtime.envPrefix}_DISABLE_PROJECT_CONFIG`]: 'true', [`${this.runtime.envPrefix}_DISABLE_AUTOUPDATE`]: 'true',
       [`${this.runtime.envPrefix}_DISABLE_DEFAULT_PLUGINS`]: 'true',
       ...this.runtime.extraEnv,
