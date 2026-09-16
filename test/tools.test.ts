@@ -8,6 +8,29 @@ import { hash, MAX_FILE_BYTES, prepareTool } from '../src/tools.js';
 const fixture = async () => realpath(await mkdtemp(path.join(tmpdir(), 'robinhood tools test ')));
 const signal = () => new AbortController().signal;
 
+test('literal edits reject ambiguity and preserve concurrent edits', async () => {
+  const root = await fixture();
+  await writeFile(path.join(root, 'code.ts'), 'one two one');
+  const args = { path: 'code.ts', oldText: 'one', newText: 'three', expectedHash: hash('one two one') };
+  await assert.rejects(prepareTool(root, 'edit_file', JSON.stringify(args)), /exactly once/);
+  const edit = await prepareTool(root, 'edit_file', JSON.stringify({ ...args, oldText: 'two' }));
+  await writeFile(path.join(root, 'code.ts'), 'external');
+  await assert.rejects(edit.execute(signal()), /changed since/);
+  assert.equal(await readFile(path.join(root, 'code.ts'), 'utf8'), 'external');
+});
+
+test('workspace search skips credentials and links and reports literal match lines', async () => {
+  const root = await fixture();
+  await mkdir(path.join(root, '.gemini'));
+  await writeFile(path.join(root, '.gemini', 'secret.txt'), 'needle');
+  await writeFile(path.join(root, 'code.txt'), 'first\nneedle [.*]\nlast');
+  const search = await prepareTool(root, 'search_files', JSON.stringify({ query: '[.*]' }));
+  const result = JSON.parse(await search.execute(signal()));
+  assert.deepEqual(result.matches, [{ path: 'code.txt', line: 2, text: 'needle [.*]' }]);
+  const glob = await prepareTool(root, 'glob_files', JSON.stringify({ pattern: '**/*.txt' }));
+  assert.deepEqual(JSON.parse(await glob.execute(signal())).matches, ['code.txt']);
+});
+
 test('native CLI credential profiles are excluded from file tools', async () => {
   const root = await fixture();
   for (const filename of ['.gemini/oauth_creds.json', '.copilot/config.json', 'cli-profiles/gemini/settings.json']) {

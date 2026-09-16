@@ -9,6 +9,9 @@ const secretNames = /^(?:\.env(?:\..*)?|auth\.json|credentials\.json|id_rsa|id_e
 const excludedDirs = new Set(['.git', '.robinhood', 'node_modules', '.gemini', '.copilot', 'cli-profiles']);
 
 export const toolDefinitions = [
+  { type: 'function', function: { name: 'glob_files', description: 'Find workspace file paths using a glob. Skips credentials, dependencies, Git, and symbolic links. At most 200 matches.', parameters: { type: 'object', properties: { pattern: { type: 'string' } }, required: ['pattern'], additionalProperties: false } } },
+  { type: 'function', function: { name: 'search_files', description: 'Search workspace text files for a literal string, with optional glob. Returns paths, line numbers and bounded excerpts.', parameters: { type: 'object', properties: { query: { type: 'string' }, pattern: { type: 'string' } }, required: ['query'], additionalProperties: false } } },
+  { type: 'function', function: { name: 'edit_file', description: 'Replace one unique literal occurrence in a file. Requires the hash from read_file and approval; refuses ambiguous matches or stale content.', parameters: { type: 'object', properties: { path: { type: 'string' }, oldText: { type: 'string' }, newText: { type: 'string' }, expectedHash: { type: 'string' } }, required: ['path', 'oldText', 'newText', 'expectedHash'], additionalProperties: false } } },
   { type: 'function', function: { name: 'list_files', description: 'List one workspace directory, at most 200 entries.', parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'], additionalProperties: false } } },
   { type: 'function', function: { name: 'read_file', description: 'Read a UTF-8 workspace file and its SHA-256 hash, at most 64 KiB.', parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'], additionalProperties: false } } },
   { type: 'function', function: { name: 'write_file', description: 'Create or replace a UTF-8 workspace file. Supply the SHA-256 from read_file for an existing file, or null only for a new file. Requires approval.', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' }, expectedHash: { type: ['string', 'null'] } }, required: ['path', 'content', 'expectedHash'], additionalProperties: false } } },
@@ -125,10 +128,64 @@ export interface PreparedTool {
   execute(signal: AbortSignal): Promise<string>;
 }
 
+async function* workspaceFiles(workspace: string, signal: AbortSignal): AsyncGenerator<string> {
+  const queue = ['.']; let visited = 0;
+  while (queue.length) {
+    signal.throwIfAborted();
+    const directory = queue.shift()!;
+    for (const entry of await readdir(await inside(workspace, directory), { withFileTypes: true })) {
+      if (++visited > 10000) throw new Error('Search exceeds 10,000 workspace entries. Narrow the workspace.');
+      signal.throwIfAborted();
+      if (entry.isSymbolicLink() || excludedDirs.has(entry.name.toLowerCase()) || secretNames.test(entry.name) || /\.(pem|key)$/i.test(entry.name)) continue;
+      const filename = path.join(directory, entry.name);
+      if (entry.isDirectory()) queue.push(filename);
+      else if (entry.isFile()) yield filename;
+    }
+  }
+}
+
 export async function prepareTool(workspace: string, name: string, raw: string): Promise<PreparedTool> {
   const args: unknown = JSON.parse(raw);
   if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error('Tool arguments must be an object.');
   const input = args as Record<string, unknown>;
+  if (name === 'glob_files' || name === 'search_files') {
+    const pattern = input.pattern ?? '**/*';
+    if (typeof pattern !== 'string' || !pattern || pattern.length > 256) throw new Error('Supply a glob of 1-256 characters.');
+    const query = input.query;
+    if (name === 'search_files' && (typeof query !== 'string' || !query || query.length > 1000)) throw new Error('Supply a literal query of 1-1000 characters.');
+    return { description: `${name}: ${pattern}${query ? ` containing ${String(query)}` : ''}`, execute: async signal => {
+      const matches: unknown[] = []; let bytes = 0;
+      for await (const filename of workspaceFiles(workspace, signal)) {
+        if (!path.matchesGlob(filename.replaceAll('\\', '/'), pattern)) continue;
+        if (name === 'glob_files') matches.push(filename);
+        else {
+          let content: string;
+          try { content = await readBounded(await inside(workspace, filename)); } catch { continue; }
+          if (content.includes('\0')) continue;
+          const lines = content.split('\n');
+          for (let index = 0; index < lines.length; index++) {
+            if (!lines[index]!.includes(query as string)) continue;
+            const item = { path: filename, line: index + 1, text: lines[index]!.slice(0, 400) };
+            bytes += Buffer.byteLength(JSON.stringify(item));
+            matches.push(item);
+            if (matches.length >= 200 || bytes >= MAX_OUTPUT_BYTES - 1024) return JSON.stringify({ matches, truncated: true });
+          }
+        }
+        if (matches.length >= 200) return JSON.stringify({ matches, truncated: true });
+      }
+      return JSON.stringify({ matches, truncated: false });
+    } };
+  }
+  if (name === 'edit_file') {
+    if (typeof input.path !== 'string' || typeof input.oldText !== 'string' || !input.oldText || typeof input.newText !== 'string' || typeof input.expectedHash !== 'string') throw new Error('Supply path, nonempty oldText, newText, and expectedHash.');
+    const content = await readBounded(await inside(workspace, input.path));
+    if (hash(content) !== input.expectedHash) throw new Error('File changed since it was read.');
+    const first = content.indexOf(input.oldText);
+    if (first < 0 || content.indexOf(input.oldText, first + 1) >= 0) throw new Error('oldText must occur exactly once. Include more surrounding text.');
+    const replacement = content.slice(0, first) + input.newText + content.slice(first + input.oldText.length);
+    const prepared = await prepareTool(workspace, 'write_file', JSON.stringify({ path: input.path, content: replacement, expectedHash: input.expectedHash }));
+    return { ...prepared, description: `Edit ${input.path}\nREMOVE:\n${input.oldText}\nADD:\n${input.newText}` };
+  }
   if (name === 'run_command') {
     if (typeof input.command !== 'string' || !input.command.trim() || input.command.length > 4000 || input.command.includes('\0')) throw new Error('A command of 1-4000 characters is required.');
     const command = input.command;
