@@ -65,10 +65,11 @@ async function readBounded(filename: string): Promise<string> {
 
 export class UnknownOutcome extends Error {}
 
-async function runCommand(workspace: string, command: string, signal: AbortSignal): Promise<string> {
+export async function runCommand(workspace: string, command: string, signal: AbortSignal, timeoutMs = 30_000, onStart?: (pid: number) => void): Promise<string> {
   signal.throwIfAborted();
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|^ROBINHOOD_/i.test(key)));
   const child = spawn(command, { cwd: workspace, env, shell: true, windowsHide: true, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'] });
+  if (child.pid) onStart?.(child.pid);
   let output = '';
   let bytes = 0;
   let stopReason: string | undefined;
@@ -100,7 +101,7 @@ async function runCommand(workspace: string, command: string, signal: AbortSigna
   child.stderr.on('data', collect);
   const cancel = () => stop('Cancelled by user');
   signal.addEventListener('abort', cancel, { once: true });
-  const timeout = setTimeout(() => stop('30-second time limit reached'), 30_000);
+  const timeout = setTimeout(() => stop(`${timeoutMs / 1000}-second time limit reached`), timeoutMs);
   let watchdog: NodeJS.Timeout | undefined;
   try {
     const code = await new Promise<number | null>((resolve, reject) => {

@@ -20,6 +20,7 @@ import type { Connector, Route, Session } from './types.js';
 import { Capabilities } from './capabilities.js';
 import { compactSession } from './context.js';
 import { systemPrompt, systemPromptHash } from './prompt.js';
+import { Jobs } from './jobs.js';
 
 const help = `Robinhood 0.0.1 / developer preview
 
@@ -48,6 +49,9 @@ In the terminal:
   /goal TEXT              Set an explicit goal; /goal shows its status
   /fork [OBJECTIVE]       Branch this task, preserving completed receipts
   /compact                Review a model summary for shorter context
+  /jobs                   Inspect background jobs and outcomes
+  /job-stop ID            Stop an owned background job
+  /job-resolve ID NOTE    Record an interrupted job outcome you verified
   /pending                Inspect operations needing reconciliation
   /resolve ID NOTE        Record the outcome you verified for an uncertain operation
   /reconcile              Accept a changed checkout after inspecting the workspace
@@ -84,7 +88,7 @@ async function main(): Promise<void> {
   let routes: Route[] = [];
   let active: AbortController | undefined;
   let vault: AccountVault | undefined;
-  const capabilities = new Capabilities();
+  const capabilities = new Capabilities(new Jobs(secrets));
   const interrupt = () => { if (active) active.abort(new Error('Cancelled by user')); else terminal.close(); };
   terminal.rl.on('SIGINT', interrupt);
   process.on('SIGINT', interrupt);
@@ -219,6 +223,9 @@ async function main(): Promise<void> {
         }
         if (command === '/providers') { terminal.line(`${providers.map(entry => `${entry.id}: ${connections.has(entry.id) ? 'connected' : 'not connected'} — ${entry.access}`).join('\n')}\nSelected route: ${routes[0]?.id ?? 'none'}`); continue; }
         if (command === '/prompt') { terminal.line(`System prompt ${systemPromptHash}\n${systemPrompt}`); continue; }
+        if (command === '/jobs') { terminal.line(JSON.stringify(capabilities.jobs.list(store, required()), null, 2)); continue; }
+        if (command === '/job-stop') { terminal.line(JSON.stringify(await capabilities.jobs.stop(store, required(), argument), null, 2)); continue; }
+        if (command === '/job-resolve') { capabilities.jobs.resolve(store, required(), pieces[0] ?? '', pieces.slice(1).join(' ')); terminal.line('Verified job outcome recorded.'); continue; }
         if (command === '/plan') {
           if (!['on', 'off'].includes(argument)) throw new Error('Use /plan on or /plan off.');
           if (!current) current = store.create(workspace, await workspaceIdentity(workspace), 'Plan a task');
@@ -299,6 +306,7 @@ async function main(): Promise<void> {
     }
   } finally {
     process.removeListener('SIGINT', interrupt);
+    await capabilities.jobs.close().catch(error => terminal.line(`Background job cleanup needs inspection: ${String(error)}`));
     await Promise.allSettled([...connections.values()].map(connection => connection.close?.()));
     terminal.close();
     store.close();

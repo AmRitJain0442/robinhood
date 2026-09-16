@@ -88,12 +88,14 @@ export class Store {
   }
 
   compact(id: string, through: number, summary: string): void {
+    this.assertJobsSettled(id);
     if (this.operations(id).some(op => ['prepared', 'running', 'unknown'].includes(op.state))) throw new Error('Resolve pending operations before compacting.');
     if (!Number.isSafeInteger(through) || through !== this.messages(id).length || !summary.trim() || Buffer.byteLength(summary) > 32000) throw new Error('Invalid or stale context summary.');
     this.event(id, 'context-compacted', { through, summary });
   }
 
   fork(id: string, objective?: string): Session {
+    this.assertJobsSettled(id);
     const source = this.get(id);
     const operations = this.operations(id);
     if (operations.some(op => ['prepared', 'running', 'unknown'].includes(op.state))) throw new Error('Resolve pending operations before branching.');
@@ -171,8 +173,18 @@ export class Store {
   }
 
   delete(id: string): void {
+    this.assertJobsSettled(id);
     if (this.operations(id).some(op => op.state === 'unknown' || op.state === 'running')) throw new Error('Resolve uncertain operations before deleting this session.');
     this.db.prepare('DELETE FROM sessions WHERE id=?').run(id);
+  }
+
+  private assertJobsSettled(id: string): void {
+    const jobs = new Map<string, string>();
+    for (const event of this.events(id).filter(event => event.kind === 'job')) {
+      const job = event.body as { id: string; status: string };
+      jobs.set(job.id, job.status);
+    }
+    if ([...jobs.values()].some(state => state === 'running' || state === 'unknown')) throw new Error('Stop or reconcile background jobs before modifying session history.');
   }
 
   reconcileWorkspace(id: string, identity: string): Session {
