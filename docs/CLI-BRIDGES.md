@@ -1,5 +1,8 @@
 # Additional coding CLI bridges
 
+> Permission mode: the terminal now defaults to YOLO, which satisfies runtime approval gates without prompting. `--ask` or `/permissions ask` restores per-action confirmations. References below to approval describe the execution gate; interactive confirmation applies in ask mode. Account-dependent requests may consume credits. Plan mode and uncertain-outcome checks remain enforced.
+
+
 This work extends the existing OpenCode bridge one engine at a time. Each adapter must retain Robinhood's task history, approvals and receipts, stop its owned process on cancellation, and report account requirements accurately.
 
 ## Completed implementation

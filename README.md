@@ -2,7 +2,7 @@
 
 **Keep the task. Switch the model.**
 
-A local coding terminal with durable task memory, explicit tool approvals, and model routing built around the free access you actually have.
+A local coding terminal with durable task memory, configurable permissions, and model routing built around the free access you actually have.
 
 > **Developer preview — 0.0.1.** There are 25 cloud API connectors and four native CLI bridges: OpenCode, Kilo, Gemini, and GitHub Copilot. Native Google/GitHub login is supported; authenticated inference remains unverified. OpenCode and the direct Kilo API passed anonymous text smoke tests. Automatic live-provider switching is pending. See the [integration ledger](docs/INTEGRATIONS.md).
 
@@ -44,6 +44,8 @@ robinhood
 
 Robinhood uses your current directory as the workspace. You can also run `robinhood --workspace /path/to/project`, `robinhood --help`, or `robinhood demo`. The local installation points to this checkout; run `npm run build` here after pulling updates. Remove the command with `npm uninstall -g @amritjain0442/robinhood`.
 
+**YOLO is the default.** Tools, selected-account model requests, and explicit terminal commands run without permission prompts. `robinhood --ask` or `/permissions ask` restores confirmations; `/permissions yolo` turns them off again. The current mode is visible in the TUI. Account-dependent requests may consume paid credits; YOLO does not switch accounts or create a paid fallback. Credential exclusions, file hash checks, plan mode, provider pricing checks, and unknown-outcome recovery remain enforced. Login and genuinely missing task information can still require input.
+
 Inside the terminal:
 
 **Want OpenCode's free models without an API key?** Run `/connect opencode`, choose **Launch OpenCode free-model bridge**, then `/models opencode`. Robinhood launches the real OpenCode CLI engine in the background while keeping its own UI, memory, and approvals. [How the bridge works and its limits](docs/OPENCODE.md).
@@ -61,7 +63,7 @@ Then use `/models PROVIDER`. These run the actual pinned CLIs behind Robinhood's
 1. Run `/connect` (or `/accounts`) to search 25 API connectors and four CLI bridges. OpenRouter supports browser authorization; Puter has an experimental browser login. Choose Google on the provider's sign-in page if offered. Kilo and AI Horde also offer anonymous access.
 2. For other providers, choose **Open official account setup**, sign in on their site, and paste an API credential once. Credentials are saved in your OS vault and restored on launch. If the vault is unavailable, the connection lasts for the current process only. Environment credentials take precedence.
 3. Run `/models` to search and select a model, or `/use PROVIDER MODEL_ID` to switch directly. Task memory stays in the session.
-4. Describe a task. Review and approve each requested tool operation. Use Page Up / Page Down to inspect longer output; Ctrl+C cancels active work.
+4. Describe a task. YOLO executes tools directly; ask mode presents confirmations. Use Page Up / Page Down to inspect longer output; Ctrl+C cancels active work.
 5. Use `/sessions` and `/resume ID` to recover a task after restarting. Saved accounts reconnect; choose a model with `/models`.
 
 **One terminal, separately authorized accounts.** Google sign-in to one provider cannot authorize unrelated providers. Robinhood does not pool or transfer credits, create accounts automatically, bypass quotas, or treat consumer subscriptions as API allowances. See [account linking](docs/ACCOUNTS.md) for supported methods and limitations.

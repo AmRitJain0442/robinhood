@@ -2,6 +2,12 @@
 
 Robinhood is an early developer preview. Use a small repository you can inspect while the workflow matures.
 
+## Permission modes
+
+The terminal defaults to **YOLO**: the runtime automatically authorizes tool calls and selected-account requests within the user's task, and explicit commands such as `/export`, `/delete`, `/plugin` and `/workflow` skip secondary confirmation. Account-dependent inference may consume credits or incur charges. Use `--ask` or `/permissions ask` for interactive confirmations. The mode and decisions are recorded for active sessions. Changing mode is a human terminal action, not a model tool.
+
+YOLO is not authorization for unrelated communications, purchases, publication or destructive work. It does not disable credential-path exclusion, stale-file checks, plan mode, provider pricing checks or recovery from uncertain side effects. `/resolve`, `/job-resolve` and `/terminal-resolve` still require a user-supplied verified outcome; YOLO does not invent one. Provider login and real missing task information remain interactive.
+
 ## Reporting a vulnerability
 
 Use [GitHub private vulnerability reporting](https://github.com/AmRitJain0442/robinhood/security/advisories/new) for credential exposure, unintended execution, data loss, or cost-policy bypasses. Include reproduction steps and synthetic examples. Do not put credentials or private source code into a public issue.
@@ -22,7 +28,7 @@ The current development branch is the only supported version. There is no stable
 
 ## Execution boundaries
 
-File tools resolve workspace paths, exclude common credential paths (including `.gemini`, `.copilot`, and `cli-profiles`), limit content size, and check old content hashes before replacement. Every operation needs an explicit approval.
+File tools resolve workspace paths, exclude common credential paths (including `.gemini`, `.copilot`, and `cli-profiles`), limit content size, and check old content hashes before replacement. Every operation passes the permission policy: automatic authorization in YOLO, explicit confirmation in ask mode.
 
 An approved shell command runs with your user privileges. These prompts are **not an OS sandbox**; commands can access files or services outside the workspace. The app imposes process/output limits and removes credential-like environment variables from tool processes, but it cannot prevent a deliberately approved command from reading files accessible to your account.
 

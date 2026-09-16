@@ -1,5 +1,8 @@
 # Integration ledger
 
+> Permission mode: the terminal now defaults to YOLO, which satisfies runtime approval gates without prompting. `--ask` or `/permissions ask` restores per-action confirmations. References below to approval describe the execution gate; interactive confirmation applies in ask mode. Account-dependent requests may consume credits. Plan mode and uncertain-outcome checks remain enforced.
+
+
 **25 cloud API connectors: 23 standard coding connectors, 1 experimental coding connector (Puter), and 1 text-only connector (AI Horde).**
 
 Connectors are implemented one at a time and share the same local task journal. **Implemented** means the protocol, authentication handling, and failure behavior have automated fixture coverage. It does not mean a real account was tested or that every account gets free usage.

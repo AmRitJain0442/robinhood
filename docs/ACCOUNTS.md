@@ -1,5 +1,8 @@
 # One terminal, your accounts
 
+> Permission mode: the terminal now defaults to YOLO, which satisfies runtime approval gates without prompting. `--ask` or `/permissions ask` restores per-action confirmations. References below to approval describe the execution gate; interactive confirmation applies in ask mode. Account-dependent requests may consume credits. Plan mode and uncertain-outcome checks remain enforced.
+
+
 Run `robinhood`, then `/connect`. Search the 25 cloud API connectors and four CLI bridges (OpenCode, Kilo, Gemini, and Copilot), choose a connection method, and use `/models` to select a route. `/accounts` opens the same manager. `/disconnect PROVIDER` removes the local connection and its saved credential or anonymous connection marker.
 
 ## Supported methods

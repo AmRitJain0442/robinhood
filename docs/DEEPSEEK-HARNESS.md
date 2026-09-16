@@ -1,5 +1,8 @@
 # Harness features in Robinhood's terminal
 
+> Permission mode: the terminal now defaults to YOLO, which satisfies runtime approval gates without prompting. `--ask` or `/permissions ask` restores per-action confirmations. References below to approval describe the execution gate; interactive confirmation applies in ask mode. Account-dependent requests may consume credits. Plan mode and uncertain-outcome checks remain enforced.
+
+
 The official MIT-licensed [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) is the feature reference, reviewed at `0d1f50007f9bca3f52b06e1c3074fa14d5fb0720` on 2026-09-16. Per the user's chosen direction, features are implemented in Robinhood's TypeScript runtime and terminal. DeepSeek Harness is **not** an installed dependency, embedded web application, or additional token provider.
 
 ## Implemented
