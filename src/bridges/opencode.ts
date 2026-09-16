@@ -1,22 +1,14 @@
-import { spawn, type ChildProcess } from 'node:child_process';
-import { once } from 'node:events';
-import { mkdtemp, mkdir, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-import { createRequire } from 'node:module';
+import { ServerProcess, type Engine } from './server-process.js';
+export type { Engine } from './server-process.js';
 import { randomUUID } from 'node:crypto';
 import { RouteError, type Connector, type ModelInfo, type Route, type Completion } from '../types.js';
-import { boundedJSON, object } from '../providers/chat-completions.js';
+import { object } from '../providers/chat-completions.js';
 import { contextBudget, manualConsent } from '../providers/http.js';
 import { chatMessages } from '../providers/memory.js';
 import { toolDefinitions } from '../tools.js';
 
 export const OPENCODE_VERSION = '1.18.31';
 export const freeModelIDs = ['big-pickle', 'mimo-v2.5-free', 'ling-3.0-flash-fin-free', 'nemotron-3-ultra-free', 'nemotron-3.5-lightning-free', 'muse-spark-1.3-contributor-free'];
-export interface Engine {
-  request(route: string, method?: string, body?: unknown, signal?: AbortSignal): Promise<unknown>;
-  close(): Promise<void>;
-}
 
 export function engineConfig() {
   return {
@@ -31,108 +23,9 @@ export function engineConfig() {
   };
 }
 
-// An owned, isolated OpenCode CLI process, using the server API behind its terminal.
-// No shell quoting, project plugins, personal auth.json, or account environment is inherited.
-export class OpenCodeProcess implements Engine {
-  private child?: ChildProcess;
-  private startPromise?: Promise<void>;
-  private baseURL = '';
-  private authorization = '';
-  private directory = '';
-  private scratch = '';
-  private closing?: Promise<void>;
-  private stopped = false;
-  constructor(private readonly config: unknown = engineConfig()) {}
-  private async start(): Promise<void> {
-    if (this.stopped) throw new Error('OpenCode bridge was closed. Reconnect it.');
-    if (this.startPromise) return this.startPromise;
-    this.startPromise = this.launch();
-    return this.startPromise;
-  }
-  private async launch() {
-    const require = createRequire(import.meta.url);
-    let packageFile: string;
-    try { packageFile = require.resolve('opencode-ai/package.json'); }
-    catch { throw new Error(`OpenCode runtime is missing. In the Robinhood checkout run: npm install --include=optional`); }
-    const pkg = JSON.parse(await readFile(packageFile, 'utf8')) as { version: string; bin: { opencode: string } };
-    if (pkg.version !== OPENCODE_VERSION) throw new Error(`This bridge requires OpenCode ${OPENCODE_VERSION}. Run npm ci in the Robinhood checkout.`);
-    const scratch = await mkdtemp(path.join(tmpdir(), 'robinhood-opencode-'));
-    this.scratch = scratch;
-    this.directory = path.join(scratch, 'workspace'); await mkdir(this.directory);
-    if (this.stopped) { await this.removeScratch(); throw new Error('OpenCode startup was cancelled.'); }
-    const password = randomUUID();
-    this.authorization = `Basic ${Buffer.from(`opencode:${password}`).toString('base64')}`;
-    const env: NodeJS.ProcessEnv = {};
-    for (const name of ['PATH', 'Path', 'SystemRoot', 'SYSTEMROOT', 'WINDIR', 'COMSPEC', 'TEMP', 'TMP', 'PATHEXT']) if (process.env[name]) env[name] = process.env[name];
-    Object.assign(env, {
-      HOME: scratch, USERPROFILE: scratch,
-      XDG_CONFIG_HOME: path.join(scratch, 'config'), XDG_DATA_HOME: path.join(scratch, 'data'),
-      XDG_CACHE_HOME: path.join(scratch, 'cache'), XDG_STATE_HOME: path.join(scratch, 'state'),
-      OPENCODE_CONFIG_CONTENT: JSON.stringify(this.config), OPENCODE_SERVER_PASSWORD: password,
-      OPENCODE_DISABLE_PROJECT_CONFIG: 'true', OPENCODE_DISABLE_AUTOUPDATE: 'true',
-      OPENCODE_DISABLE_DEFAULT_PLUGINS: 'true',
-    });
-    const binary = path.resolve(path.dirname(packageFile), pkg.bin.opencode);
-    this.child = spawn(binary, ['serve', '--hostname=127.0.0.1', '--port=0'], { cwd: this.directory, env, windowsHide: true, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'] });
-    const child = this.child;
-    try {
-      await new Promise<void>((resolve, reject) => {
-        let output = '';
-        const timer = setTimeout(() => finish(new Error('OpenCode startup timed out. Reconnect to try again.')), 30_000);
-        const onError = () => finish(new Error('OpenCode could not start. Reinstall its optional runtime.'));
-        const onExit = () => finish(new Error('OpenCode exited before its server was ready.'));
-        const onData = (chunk: Buffer) => {
-          output = (output + chunk.toString()).slice(-8192);
-          const match = output.match(/opencode server listening on (http:\/\/127\.0\.0\.1:\d+)/);
-          if (match) { this.baseURL = match[1]!; finish(); }
-        };
-        const finish = (error?: Error) => {
-          clearTimeout(timer); child.off('error', onError); child.off('exit', onExit);
-          child.stdout?.off('data', onData); child.stderr?.off('data', onData);
-          error ? reject(error) : resolve();
-        };
-        child.on('error', onError); child.on('exit', onExit); child.stdout?.on('data', onData); child.stderr?.on('data', onData);
-      });
-      // Drain logs without exposing engine diagnostics or model content to another channel.
-      child.stdout?.resume(); child.stderr?.resume(); child.on('error', () => {});
-    } catch (error) { await this.close(); throw error; }
-  }
-  async request(route: string, method = 'GET', body?: unknown, signal = AbortSignal.timeout(15_000)): Promise<unknown> {
-    signal.throwIfAborted();
-    const abort = () => { void this.close().catch(() => {}); };
-    signal.addEventListener('abort', abort, { once: true });
-    try {
-      await this.start(); signal.throwIfAborted();
-      if (this.stopped || !this.child || this.child.exitCode !== null || this.child.signalCode !== null) throw new Error('OpenCode stopped. Use /connect opencode to restart it.');
-      return await boundedJSON(await fetch(`${this.baseURL}${route}`, {
-        method, headers: { authorization: this.authorization, 'content-type': 'application/json', 'x-opencode-directory': encodeURIComponent(this.directory) },
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal, redirect: 'error',
-      }));
-    } finally { signal.removeEventListener('abort', abort); }
-  }
-  close(): Promise<void> {
-    this.stopped = true;
-    return this.closing ??= this.stop();
-  }
-  private async removeScratch(): Promise<void> {
-    if (!this.scratch) return;
-    const target = path.resolve(this.scratch);
-    // Verify the final absolute path is our direct temporary child before recursive removal.
-    if (path.dirname(target) !== path.resolve(tmpdir()) || !path.basename(target).startsWith('robinhood-opencode-')) throw new Error('Refusing to clean an unexpected OpenCode directory.');
-    await rm(target, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
-  }
-  private async stop(): Promise<void> {
-    const child = this.child;
-    if (child?.pid && child.exitCode === null && child.signalCode === null) {
-      const exited = once(child, 'close').catch(() => {});
-      if (process.platform === 'win32') {
-        const killer = spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
-        await once(killer, 'close');
-      } else { try { process.kill(-child.pid, 'SIGKILL'); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error; } }
-      await Promise.race([exited, new Promise<void>(resolve => { setTimeout(resolve, 5000).unref(); })]);
-      if (child.exitCode === null && child.signalCode === null) throw new Error('OpenCode did not exit; its temporary data was retained.');
-    }
-    await this.removeScratch();
+export class OpenCodeProcess extends ServerProcess {
+  constructor(config: unknown = engineConfig()) {
+    super(config, { packageName: 'opencode-ai', version: OPENCODE_VERSION, bin: 'opencode', envPrefix: 'OPENCODE', directoryHeader: 'x-opencode-directory' });
   }
 }
 
