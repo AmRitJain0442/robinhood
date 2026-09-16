@@ -21,6 +21,7 @@ Connectors are implemented one at a time and share the same local task journal. 
 | NVIDIA API Catalog | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Fireworks AI | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Scaleway | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
+| Sarvam AI | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 
 ## Connecting multiple providers
 
@@ -134,3 +135,9 @@ References: [chat API](https://docs.fireworks.ai/api-reference/post-chatcompleti
 Connect with `/connect scaleway` or `SCALEWAY_API_KEY`. Uses the documented Gemma tool route with a conservative 64K app budget and the default project endpoint. Dedicated deployments and GPT-OSS Responses-only features are not exposed. Signup credits remain account-dependent.
 
 References: [tool integration](https://www.scaleway.com/en/docs/generative-apis/reference-content/integrating-generative-apis-with-popular-tools/), [API reference](https://www.scaleway.com/en/developers/api/generative-apis).
+
+## Sarvam AI evidence - checked 2026-09-16
+
+Connect with `/connect sarvam` or `SARVAM_API_KEY`. Uses the native subscription-key header and the documented v1 chat/tool interface. Reasoning is disabled for portable continuation. Audio, translation and beta v2 third-party models are separate APIs and are not exposed here.
+
+References: [chat API](https://docs.sarvam.ai/api-reference/chat/chat-completions), [authentication](https://docs.sarvam.ai/api-reference/authentication).
