@@ -4,12 +4,8 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import path from 'node:path';
 import { dataPath } from '../paths.js';
-import { RouteError, type Connector, type ModelInfo, type Route } from '../types.js';
-import { engineCompletion, outputSchema } from './opencode.js';
-import { toolDefinitions } from '../tools.js';
-import { chatMessages } from '../providers/memory.js';
-import { object } from '../providers/chat-completions.js';
-import { contextBudget, manualConsent } from '../providers/http.js';
+import type { ModelInfo } from '../types.js';
+import { StructuredHeadlessBridge, type HeadlessRunner } from './structured-headless.js';
 import { minimalEnvironment, runHeadless, type HeadlessRequest } from './headless-process.js';
 
 export const GEMINI_CLI_VERSION = '0.60.0';
@@ -60,7 +56,7 @@ export async function loginGemini(profile = geminiProfile()): Promise<void> {
   console.log('Gemini CLI closed. Run robinhood, then /connect gemini-cli and /models gemini-cli.');
 }
 
-export interface GeminiRunner { run(model: string, prompt: string, signal: AbortSignal): Promise<string> }
+export type GeminiRunner = HeadlessRunner;
 export class GeminiProcess implements GeminiRunner {
   constructor(private readonly profile = geminiProfile(), private readonly fixture?: { baseURL: string; apiKey: string }) {}
   async run(model: string, prompt: string, signal: AbortSignal): Promise<string> {
@@ -69,34 +65,10 @@ export class GeminiProcess implements GeminiRunner {
   }
 }
 
-export class GeminiCliBridge implements Connector {
-  private active?: AbortController;
-  constructor(private readonly runner: GeminiRunner = new GeminiProcess()) {}
-  async close() { this.active?.abort(); }
-  async models(): Promise<ModelInfo[]> { return geminiCLIModels.map(model => ({ ...model })); }
-  route(model: string): Route {
-    return { id: `gemini-cli/${model}`, provider: 'gemini-cli', model,
-      manualApproval: 'Gemini CLI uses your native Google login. Free quota and model access depend on that account and are not verified by Robinhood. The CLI may route or retry internally within a two-minute deadline. Review Google account terms before sending project content.',
-      complete: async (messages, signal, onText, consent) => {
-        manualConsent(consent);
-        const selected = geminiCLIModels.find(item => item.id === model);
-        if (!selected) throw new RouteError('Choose a supported model from /models gemini-cli.', 'policy');
-        const prompt = `You are the model backend for Robinhood. Native tools are disabled. Return ONE JSON object conforming to this schema: ${JSON.stringify(outputSchema)}. No markdown. To inspect or change the real workspace, propose Robinhood tool calls as data; Robinhood will approve and execute them. An empty tool_calls array finishes your response. Completed receipts are historical actions; never repeat them.\nAvailable tools: ${JSON.stringify(toolDefinitions)}\nConversation: ${JSON.stringify(chatMessages(messages, 'gemini-cli', model))}`;
-        contextBudget({ prompt }, selected.context);
-        this.active = new AbortController();
-        try {
-          const raw = await this.runner.run(model, prompt, AbortSignal.any([signal, this.active.signal, AbortSignal.timeout(120000)]));
-          let outer: Record<string, unknown>, structured: unknown;
-          try {
-            outer = object(JSON.parse(raw));
-            if (outer.error || typeof outer.response !== 'string') throw new Error('invalid');
-            structured = JSON.parse(outer.response.trim().replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/, '$1'));
-          } catch { throw new RouteError('Gemini CLI did not return valid Robinhood JSON. No tools were executed. Check login or select another model.', 'protocol'); }
-          const result = engineCompletion({ info: { structured } }, 'Gemini CLI');
-          if (result.message.content) onText(result.message.content);
-          return result;
-        } finally { this.active = undefined; }
-      },
-    };
+export class GeminiCliBridge extends StructuredHeadlessBridge {
+  constructor(runner: GeminiRunner = new GeminiProcess()) {
+    super({ id: 'gemini-cli', label: 'Gemini CLI', models: geminiCLIModels,
+      notice: 'Gemini CLI uses your native Google login. Free quota and model access depend on that account and are not verified by Robinhood. The CLI may route or retry internally within a two-minute deadline. Review Google account terms before sending project content.',
+    }, runner);
   }
 }
