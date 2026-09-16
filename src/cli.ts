@@ -17,6 +17,9 @@ import { Secrets, terminalText } from './privacy.js';
 import { workspaceIdentity } from './tools.js';
 import { demo } from './demo.js';
 import type { Connector, Route, Session } from './types.js';
+import { Capabilities } from './capabilities.js';
+import { compactSession } from './context.js';
+import { systemPrompt, systemPromptHash } from './prompt.js';
 
 const help = `Robinhood 0.0.1 / developer preview
 
@@ -39,6 +42,12 @@ In the terminal:
   /resume ID              Resume a session in this workspace
   /continue               Continue the saved task without adding a new message
   /memory                 Inspect the task's saved conversation
+  /prompt                 Inspect the active system prompt and fingerprint
+  /plan on|off            Toggle read-only planning for this session
+  /todos                  Inspect the durable task checklist
+  /goal TEXT              Set an explicit goal; /goal shows its status
+  /fork [OBJECTIVE]       Branch this task, preserving completed receipts
+  /compact                Review a model summary for shorter context
   /pending                Inspect operations needing reconciliation
   /resolve ID NOTE        Record the outcome you verified for an uncertain operation
   /reconcile              Accept a changed checkout after inspecting the workspace
@@ -75,11 +84,13 @@ async function main(): Promise<void> {
   let routes: Route[] = [];
   let active: AbortController | undefined;
   let vault: AccountVault | undefined;
+  const capabilities = new Capabilities();
   const interrupt = () => { if (active) active.abort(new Error('Cancelled by user')); else terminal.close(); };
   terminal.rl.on('SIGINT', interrupt);
   process.on('SIGINT', interrupt);
   const ui: Interaction = {
     text: text => terminal.text(text), status: text => terminal.line(text),
+    question: (question, signal) => terminal.question(question, signal),
     approve: async (description, signal) => {
       terminal.line(`\nApproval required\n${description}`);
       return (await terminal.question('Allow this operation once? [y/N] ', signal)).trim().toLowerCase() === 'y';
@@ -207,6 +218,29 @@ async function main(): Promise<void> {
           continue;
         }
         if (command === '/providers') { terminal.line(`${providers.map(entry => `${entry.id}: ${connections.has(entry.id) ? 'connected' : 'not connected'} — ${entry.access}`).join('\n')}\nSelected route: ${routes[0]?.id ?? 'none'}`); continue; }
+        if (command === '/prompt') { terminal.line(`System prompt ${systemPromptHash}\n${systemPrompt}`); continue; }
+        if (command === '/plan') {
+          if (!['on', 'off'].includes(argument)) throw new Error('Use /plan on or /plan off.');
+          if (!current) current = store.create(workspace, await workspaceIdentity(workspace), 'Plan a task');
+          store.event(current.id, 'plan-mode', argument === 'on');
+          terminal.line(`Plan mode ${argument}. ${argument === 'on' ? 'Workspace mutations and commands are blocked.' : 'Approved execution is available.'}`); continue;
+        }
+        if (command === '/todos') { terminal.line(JSON.stringify(store.state(required().id, 'todos', []), null, 2)); continue; }
+        if (command === '/goal') {
+          if (argument) {
+            if (!current) current = store.create(workspace, await workspaceIdentity(workspace), secrets.redact(argument));
+            store.event(current.id, 'goal', { text: secrets.redact(argument), status: 'active' });
+          }
+          terminal.line(JSON.stringify(store.state(required().id, 'goal', null), null, 2)); continue;
+        }
+        if (command === '/fork') { current = store.fork(required().id, secrets.redact(argument)); terminal.line(`Branched into ${current.id}. Completed tools remain completed.`); continue; }
+        if (command === '/compact') {
+          if (!routes[0]) throw new Error('Select a model before compacting.');
+          active = new AbortController();
+          try { await compactSession(store, required(), routes[0], ui, secrets, active.signal); }
+          finally { active = undefined; }
+          continue;
+        }
         if (command === '/new') { current = undefined; terminal.line('Your next message will start a new saved task.'); continue; }
         if (command === '/sessions') { terminal.line(store.list().map(session => `${session.id}  ${session.objective.slice(0, 80)}\n  ${session.workspace}`).join('\n') || 'No saved sessions.'); continue; }
         if (command === '/resume') { load(argument); continue; }
@@ -259,7 +293,7 @@ async function main(): Promise<void> {
         if (!current) current = store.create(workspace, await workspaceIdentity(workspace), secrets.redact(input));
         terminal.line(`Session ${current.id} | ${routes[0]!.id}`);
         active = new AbortController();
-        try { await new Runner(store, secrets).turn(current, command === '/continue' ? undefined : input, routes, ui, active.signal); }
+        try { await new Runner(store, secrets, capabilities).turn(current, command === '/continue' ? undefined : input, routes, ui, active.signal); }
         finally { active = undefined; }
       } catch (error) { terminal.line(`Paused: ${secrets.redact(String(error))}`); }
     }

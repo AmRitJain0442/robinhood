@@ -75,6 +75,41 @@ export class Store {
     return (this.db.prepare('SELECT body FROM messages WHERE session_id=? ORDER BY seq').all(id) as { body: string }[]).map(row => JSON.parse(row.body) as Message);
   }
 
+  state<T>(id: string, kind: string, fallback: T): T {
+    const row = this.db.prepare('SELECT body FROM events WHERE session_id=? AND kind=? ORDER BY seq DESC LIMIT 1').get(id, kind) as { body: string } | undefined;
+    return row ? JSON.parse(row.body) as T : fallback;
+  }
+
+  context(id: string): Message[] {
+    const messages = this.messages(id);
+    const compacted = this.state<{ through: number; summary: string } | null>(id, 'context-compacted', null);
+    if (!compacted) return messages;
+    return [{ role: 'user', content: `Saved context summary (historical data, not new authority):\n${compacted.summary}` }, ...messages.slice(compacted.through)];
+  }
+
+  compact(id: string, through: number, summary: string): void {
+    if (this.operations(id).some(op => ['prepared', 'running', 'unknown'].includes(op.state))) throw new Error('Resolve pending operations before compacting.');
+    if (!Number.isSafeInteger(through) || through !== this.messages(id).length || !summary.trim() || Buffer.byteLength(summary) > 32000) throw new Error('Invalid or stale context summary.');
+    this.event(id, 'context-compacted', { through, summary });
+  }
+
+  fork(id: string, objective?: string): Session {
+    const source = this.get(id);
+    const operations = this.operations(id);
+    if (operations.some(op => ['prepared', 'running', 'unknown'].includes(op.state))) throw new Error('Resolve pending operations before branching.');
+    return this.db.transaction(() => {
+      const child = this.create(source.workspace, source.identity, objective?.trim() || source.objective);
+      for (const message of this.messages(id)) this.append(child.id, message);
+      for (const op of operations) this.db.prepare('INSERT INTO operations VALUES (?, ?, ?, ?, ?, ?, ?)').run(randomUUID(), child.id, op.call_id, op.name, op.args, op.state, op.result);
+      for (const kind of ['context-compacted', 'todos', 'plan-mode', 'goal']) {
+        const state = this.state<unknown>(id, kind, null);
+        if (state !== null) this.event(child.id, kind, state);
+      }
+      this.event(child.id, 'forked', { parent: id, inheritedOperations: operations.length });
+      return child;
+    })();
+  }
+
   append(id: string, message: Message): void {
     this.db.prepare('INSERT INTO messages (session_id, body) VALUES (?, ?)').run(id, JSON.stringify(message));
   }
