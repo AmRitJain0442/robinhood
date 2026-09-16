@@ -50,7 +50,7 @@ export class Compatible implements Connector {
         const body = { ...this.spec.extraBody, model, messages: chatMessages(messages, this.spec.id, model), tools: toolDefinitions, ...(this.spec.omitToolChoice ? {} : { tool_choice: 'auto' }), stream: !this.spec.nonStreaming, [this.spec.maxTokenField ?? 'max_tokens']: 2048 };
         contextBudget(body, selected.context);
         const response = await fetch(`${this.baseURL}${this.spec.completionPath ?? '/chat/completions'}`, { method: 'POST', headers: this.headers(), body: JSON.stringify(body), signal: AbortSignal.any([signal, AbortSignal.timeout(120_000)]), redirect: 'error' });
-        return this.spec.nonStreaming ? jsonCompletion(await boundedJSON(response), onText) : parseCompletion(response, onText);
+        return this.spec.nonStreaming ? jsonCompletion(await boundedJSON(response), onText) : parseCompletion(response, onText, { provider: this.spec.id, model });
       },
     };
   }

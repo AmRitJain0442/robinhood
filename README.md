@@ -4,7 +4,7 @@
 
 A local coding terminal with durable task memory, explicit tool approvals, and model routing built around the free access you actually have.
 
-> **Developer preview — 0.0.1.** The terminal and connectors in the [integration ledger](docs/INTEGRATIONS.md) are implemented. Provider expansion is in progress; official agent logins and automatic live-provider switching have separate validation gates. Hosted inference has not yet been verified with a real account; the behavioral suite uses local HTTP fixtures.
+> **Developer preview — 0.0.1.** The terminal and connectors in the [integration ledger](docs/INTEGRATIONS.md) are implemented. There are 25 cloud API connectors: 23 standard coding connectors, experimental Puter support, and text-only AI Horde. Kilo has a successful anonymous live smoke test; other account inference remains unverified. Official agent logins and automatic live-provider switching are not implemented.
 
 ## Try the handoff demo
 
@@ -36,7 +36,7 @@ npm start -- --workspace /path/to/your/project
 
 Inside the terminal:
 
-1. Run `/connect PROVIDER` (for example, `/connect openrouter` or `/connect gemini`) and enter the provider API key in the hidden prompt. The key stays in this process. Provider-specific environment keys are also supported; see the integration ledger.
+1. Run `/connect PROVIDER` (for example, `/connect openrouter` or `/connect gemini`) and enter the provider API key in the hidden prompt. The key stays in this process. Kilo and AI Horde accept a blank key for anonymous access. Cloudflare also asks for an account ID. Provider-specific environment keys are listed in the integration ledger.
 2. Run `/models PROVIDER` to list supported models and the provider's access policy.
 3. Run `/use PROVIDER MODEL_ID`, using an exact model ID from that list. Existing task memory stays in the session.
 4. Describe a task. Review and approve each requested tool operation.

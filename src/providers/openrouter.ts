@@ -49,7 +49,7 @@ export class OpenRouter {
           method: 'POST', headers: { Authorization: `Bearer ${this.key}`, 'content-type': 'application/json', 'X-Title': 'Robinhood' },
           body: JSON.stringify(body), signal: AbortSignal.any([signal, AbortSignal.timeout(120_000)]), redirect: 'error',
         });
-        return parseCompletion(response, onText);
+        return parseCompletion(response, onText, { provider: 'openrouter', model });
       },
     };
   }

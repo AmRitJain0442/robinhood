@@ -10,7 +10,7 @@ export interface Message {
   tool_calls?: ToolCall[];
   tool_call_id?: string;
   source?: { provider: string; model: string };
-  providerState?: { provider: string; model: string; parts: Record<string, unknown>[] };
+  providerState?: { provider: string; model: string; parts: Record<string, unknown>[]; chat?: Record<string, unknown> };
 }
 
 export interface Usage {

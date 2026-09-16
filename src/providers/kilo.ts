@@ -25,7 +25,7 @@ export class Kilo implements Connector {
         const body = { model, messages: chatMessages(messages, 'kilo', model), tools: toolDefinitions, tool_choice: 'auto', stream: true, max_tokens: 2048 };
         contextBudget(body, selected.context);
         const response = await fetch(`${this.baseURL}/chat/completions`, { method: 'POST', headers: { 'content-type': 'application/json', ...(this.key ? { Authorization: `Bearer ${this.key}` } : {}) }, body: JSON.stringify(body), signal: AbortSignal.any([signal, AbortSignal.timeout(120_000)]), redirect: 'error' });
-        return parseCompletion(response, onText);
+        return parseCompletion(response, onText, { provider: 'kilo', model });
       },
     };
   }

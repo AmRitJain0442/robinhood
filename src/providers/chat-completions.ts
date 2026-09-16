@@ -59,7 +59,7 @@ export function statusError(status: number, retry: string | null): RouteError {
   return new RouteError(`Provider returned HTTP ${status}. No automatic retry was made.`, 'protocol');
 }
 
-export async function parseCompletion(response: Response, onText: (text: string) => void): Promise<Completion> {
+export async function parseCompletion(response: Response, onText: (text: string) => void, source?: { provider: string; model: string }): Promise<Completion> {
   if (!response.ok) { await response.body?.cancel(); throw statusError(response.status, response.headers.get('retry-after')); }
   if (!response.body || !response.headers.get('content-type')?.includes('text/event-stream')) throw new RouteError('Expected an event stream from the provider.', 'protocol');
   let content = '';
@@ -68,6 +68,8 @@ export async function parseCompletion(response: Response, onText: (text: string)
   let usage: Usage | undefined;
   let bytes = 0;
   const calls = new Map<number, ToolCall>();
+  const reasoning = new Map<number, Record<string, unknown>>();
+  let reasoningContent = '';
   const parser = createParser({
     maxBufferSize: 128 * 1024,
     onError(error) { throw new RouteError(`Invalid provider stream: ${error.type}`, 'protocol'); },
@@ -89,7 +91,24 @@ export async function parseCompletion(response: Response, onText: (text: string)
       if (choice.finish_reason === 'length') throw new RouteError('Model output limit reached; incomplete tool calls were not executed.', 'protocol');
       if (choice.finish_reason === 'stop' || choice.finish_reason === 'tool_calls') finished = true;
       const delta = object(choice.delta);
+      // Opaque provider continuation state stays on its originating route.
+      if (typeof delta.reasoning_content === 'string') reasoningContent += delta.reasoning_content;
+      if (Array.isArray(delta.reasoning_details)) for (const [position, value] of delta.reasoning_details.entries()) {
+        const part = object(value);
+        const index = typeof part.index === 'number' ? part.index : position;
+        if (!Number.isSafeInteger(index) || index < 0 || index > 127) throw new RouteError('Invalid reasoning continuation index.', 'protocol');
+        const current = reasoning.get(index) ?? {};
+        for (const [key, value] of Object.entries(part)) {
+          if (['data', 'text', 'signature'].includes(key) && typeof value === 'string') current[key] = String(current[key] ?? '') + value;
+          else current[key] = value;
+        }
+        reasoning.set(index, current);
+      }
       if (typeof delta.content === 'string') { content += delta.content; onText(delta.content); }
+      if (Array.isArray(delta.content)) for (const value of delta.content) {
+        const part = object(value);
+        if (part.type === 'text' && typeof part.text === 'string') { content += part.text; onText(part.text); }
+      }
       if (Array.isArray(delta.tool_calls)) for (const value of delta.tool_calls) {
         const part = object(value);
         if (typeof part.index !== 'number' || !Number.isInteger(part.index) || part.index < 0 || part.index > 7) throw new RouteError('Invalid or excessive tool calls.', 'protocol');
@@ -115,6 +134,7 @@ export async function parseCompletion(response: Response, onText: (text: string)
     if (!done || !finished) throw new RouteError('Provider stream disconnected before completion.', 'protocol');
     const toolCalls = [...calls.entries()].sort(([a], [b]) => a - b).map(([, call]) => call);
     validateCalls(toolCalls);
-    return { message: { role: 'assistant', content: content || null, ...(toolCalls.length ? { tool_calls: toolCalls } : {}) }, usage };
+    const chat = { ...(reasoning.size ? { reasoning_details: [...reasoning.entries()].sort(([a], [b]) => a - b).map(([, value]) => value) } : {}), ...(reasoningContent ? { reasoning_content: reasoningContent } : {}) };
+    return { message: { role: 'assistant', content: content || null, ...(toolCalls.length ? { tool_calls: toolCalls } : {}), ...(source && Object.keys(chat).length ? { providerState: { ...source, parts: [], chat } } : {}) }, usage };
   } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }

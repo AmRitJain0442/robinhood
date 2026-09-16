@@ -19,6 +19,9 @@ export function portableMessages(messages: Message[], provider: string, model: s
   });
 }
 
-export function chatMessages(messages: Message[], provider: string, model: string): Message[] {
-  return portableMessages(messages, provider, model).map(({ role, content, tool_calls, tool_call_id }) => ({ role, content, ...(tool_calls ? { tool_calls } : {}), ...(tool_call_id ? { tool_call_id } : {}) }));
+export function chatMessages(messages: Message[], provider: string, model: string): Record<string, unknown>[] {
+  return portableMessages(messages, provider, model).map(({ role, content, tool_calls, tool_call_id, providerState }) => ({
+    ...(providerState?.provider === provider && providerState.model === model ? providerState.chat : {}),
+    role, content, ...(tool_calls ? { tool_calls } : {}), ...(tool_call_id ? { tool_call_id } : {}),
+  }));
 }
