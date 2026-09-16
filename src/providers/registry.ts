@@ -1,4 +1,5 @@
 import { ai21 } from './specs/ai21.js';
+import { Horde } from './horde.js';
 import { cohere } from './specs/cohere.js';
 import { cloudflare } from './specs/cloudflare.js';
 import { ollama } from './specs/ollama.js';
@@ -34,6 +35,7 @@ export interface ProviderDefinition {
   create(key: string, configuration?: string): Connector;
 }
 export const providers: ProviderDefinition[] = [
+  { id: 'horde', name: 'AI Horde (blank key for anonymous access)', env: 'AI_HORDE_API_KEY', anonymous: true, access: 'Public text only; queued volunteer service; no coding tools', create: key => new Horde(key) },
   { id: 'ai21', name: 'AI21', env: 'AI21_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(ai21, key) },
   { id: 'cloudflare', name: 'Cloudflare Workers AI', env: 'CLOUDFLARE_API_TOKEN', configuration: { env: 'CLOUDFLARE_ACCOUNT_ID', prompt: 'Cloudflare account ID' }, access: 'Account-dependent; each request needs confirmation', create: (key, account) => new Compatible(cloudflare(account ?? ''), key) },
   { id: 'cohere', name: 'Cohere', env: 'COHERE_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(cohere, key) },

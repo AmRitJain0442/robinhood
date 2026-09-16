@@ -28,6 +28,7 @@ Connectors are implemented one at a time and share the same local task journal. 
 | Cohere | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Cloudflare Workers AI | Account-scoped Chat Completions | Account-dependent; confirmation each request | HTTP tool contracts and account-path validation; real-account inference unverified |
 | AI21 | Non-streaming Chat Completions | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
+| AI Horde | Queued text generation; no coding tools | Public-data confirmation; anonymous or account key | HTTP submit/status/cancellation fixtures, public catalog; inference unverified |
 
 ## Connecting multiple providers
 
@@ -183,3 +184,9 @@ References: [compatibility endpoint](https://developers.cloudflare.com/workers-a
 Connect with `/connect ai21` or `AI21_API_KEY`. Uses non-streaming requests because the documented Jamba tool interface requires stream=false. Responses are bounded and validated before any tool can execute. The static model list uses a conservative 64K budget; trial credits are account-dependent.
 
 References: [chat request and streaming limitation](https://docs.ai21.com/reference/jamba-1-6-api-ref), [function calling](https://docs.ai21.com/docs/function-calling).
+
+## AI Horde evidence - checked 2026-09-16
+
+`/connect horde` accepts a blank key for anonymous access, or `AI_HORDE_API_KEY`. Only active text models are listed. Requests use a conservative 8K context and 512-token output cap; worker support can vary. Polling is bounded to two minutes and failed or cancelled requests trigger best-effort deletion of their job. No duplicate submission is retried. A disconnect during submission can leave a remote job whose ID was never received. Volunteer workers receive the prompt: public data only. Generated text never becomes a tool call.
+
+References: [API schema](https://aihorde.net/api/), [developer overview](https://dev.aihorde.net/).
