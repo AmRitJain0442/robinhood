@@ -19,6 +19,7 @@ Connectors are implemented one at a time and share the same local task journal. 
 | Vercel AI Gateway | Chat Completions streaming | Account-dependent; confirmation each request | HTTP capability-filter fixtures, public catalog; real-account inference unverified |
 | Hugging Face | Chat Completions streaming | Account-dependent; explicit upstream selection | HTTP catalog-withdrawal fixtures, public catalog; real-account inference unverified |
 | NVIDIA API Catalog | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
+| Fireworks AI | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 
 ## Connecting multiple providers
 
@@ -120,3 +121,9 @@ References: [function calling and provider selection](https://huggingface.co/doc
 Connect with `/connect nvidia` or `NVIDIA_API_KEY`. Connects the hosted catalog's reviewed Llama tool model. This is not a local NIM deployment or a production inference entitlement. Evaluation access and remaining allowance need account verification.
 
 References: [model API](https://docs.api.nvidia.com/nim/reference/meta-llama-3_3-70b-instruct), [trial terms](https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf).
+
+## Fireworks AI evidence - checked 2026-09-16
+
+Connect with `/connect fireworks` or `FIREWORKS_API_KEY`. Uses the documented serverless GPT-OSS tool model. Dedicated deployments are excluded. The reviewed model list is static; signup credit and availability require account verification.
+
+References: [chat API](https://docs.fireworks.ai/api-reference/post-chatcompletions), [serverless model](https://fireworks.ai/models/fireworks/gpt-oss-120b).
