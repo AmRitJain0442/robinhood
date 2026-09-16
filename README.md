@@ -81,10 +81,19 @@ Your conversation and approved tool results are sent to the selected provider an
 | Memory | SQLite conversation, objective, usage observations, and durable tool receipts |
 | Tools | List a directory, read a file, create/replace a file with a hash check, and run a bounded approved command |
 | Recovery | Known completed tools stay completed; uncertain crash outcomes block continuation until reconciled |
+| Agent capabilities | Planning, checklists, explicit goals, session branches, reviewed compaction, pinned constraints, skills, plugins, MCP, background jobs, persistent shells, research delegation and workflows |
 | Portability | Source installation; automated tests configured for Windows, macOS, and Linux |
 | Handoff | Tested with simulated providers; automatic live-provider fallback is pending |
 
 The quota display reports observed activity and unknown balances honestly. This preview does not calculate a universal daily token pool or automatically compact long sessions. Model-specific compatibility still needs real-account verification.
+
+## Agent features
+
+Robinhood now has **21 built-in tools** and a native terminal implementation of core [DeepSeek Harness-inspired features](docs/DEEPSEEK-HARNESS.md). This is not full upstream parity; the linked checklist lists remaining features.
+
+Use `/plan on` to inspect before editing, `/todos` for the checklist, `/pin TEXT` for durable constraints, `/fork` to branch, and `/compact` to review a shorter context summary. `/skills`, `/plugin FILE`, and `/mcp CONFIG.json` extend the agent. `/delegate TASK` runs a read-only research branch; `/workflow FILE` runs a reviewed sequence of tasks. `/jobs` and `/terminals` show background work. `/capabilities` lists the active tools.
+
+The [system prompt](prompts/system.md) is adapted from your supplied prompt collection, with persistence, implementation and verification guidance. `/prompt` shows the active version. The full source collection is preserved as a reference; incompatible templates and unavailable-tool descriptions are not sent to models.
 
 ## Useful commands
 

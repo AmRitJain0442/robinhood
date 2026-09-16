@@ -1,0 +1,8 @@
+{
+  "name": "Inspect, implement, verify",
+  "steps": [
+    "Inspect the relevant code and create a short checklist for the user's objective.",
+    "Implement the reviewed checklist while preserving existing behavior.",
+    "Run relevant checks and report actual outcomes and remaining limitations."
+  ]
+}

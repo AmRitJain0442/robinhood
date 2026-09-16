@@ -11,7 +11,7 @@
 - **M2 preview implemented:** interactive terminal, approved tools, SQLite persistence, export/delete, and uncertain-outcome recovery.
 - **Cloud API expansion implemented:** 25 connectors share the task journal. Puter is experimental; AI Horde is text-only. See the [integration ledger](INTEGRATIONS.md) for reviewed models, authentication, and validation limits.
 - **Validation:** 55 local behavioral tests and the offline restart/handoff demo pass. Kilo's anonymous plain-text smoke test succeeded; a later live tool probe hit a rate limit. Other authenticated inference remains unverified.
-- **Pending:** official agent bridges and browser login, account-specific allowance groups and cooldowns, automatic live fallback, long-context compaction, richer UI, real-account validation, and release hardening. Adapter implementation alone does not complete M3/M4 release gates.
+- **Pending:** additional agent bridges, account-specific allowance groups and cooldowns, automatic live fallback and compaction, real-account validation, and release hardening. Four CLI bridges, selected browser/native logins and native terminal agent features are now implemented; see [the capability ledger](DEEPSEEK-HARNESS.md). Adapter implementation alone does not complete M3/M4 release gates.
 
 The milestones below remain the end-to-end target. An implemented preview feature does not imply its beta/release gates are complete.
 

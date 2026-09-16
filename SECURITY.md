@@ -28,6 +28,14 @@ An approved shell command runs with your user privileges. These prompts are **no
 
 If Robinhood cannot establish whether an interrupted command finished, it stops. Inspect `/pending`, check the workspace/process state, and use `/resolve` to record the outcome you verified. Do not mark an operation complete merely to bypass the pause.
 
+Background jobs and persistent shells are session-owned and close on normal exit. Crashes can leave native processes running; inspect `/jobs` or `/terminals` and their saved PIDs before reconciliation. Input accepted by a terminal is not a completed-command receipt. Plan mode blocks mutation tools and all extension tools in code, including calls a model invents despite the restricted catalog.
+
+Plugins and MCP configurations load only through explicit terminal commands and approval. Local plugin module initialization and server processes are trusted code with OS privileges. Plugin internals are not sandboxed, and cancellation requires plugin cooperation. Approved remote MCP calls transmit arguments to the configured service. Extensions do not autostart. Unknown extension outcomes stop the runner until inspected. MCP server authentication and arbitrary upstream hook formats are not implemented.
+
+Public web retrieval accepts HTTP(S) text on standard ports, rejects private/reserved DNS answers, pins the checked address, and checks redirects independently. It supplies no browser cookies or provider credentials. Returned text is untrusted content.
+
+Compaction changes the model's projected context, not the saved transcript. Pinned constraints, skills, project guidance, checklists and goals remain local session data and are sent with later model requests. Forks copy settled receipts with new operation IDs; they never queue inherited actions for execution.
+
 ## Native CLI accounts
 
 Gemini and Copilot own login and refresh in dedicated profiles under the default Robinhood data directory, shared across workspaces and unaffected by session `--data-dir` overrides. Robinhood stores only their connection markers in its vault. Native credential storage follows the CLI's behavior; Copilot may fall back to plaintext when its credential store is unavailable. These credentials are not registered in Robinhood's key redactor. Profiles may retain conversation copies. Disconnecting a bridge does not erase its native profile or revoke provider authorization.

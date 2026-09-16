@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** the [runtime decision](decisions/0001-direct-runtime.md) selects a direct TypeScript request loop. The terminal now has 25 cloud API connectors sharing a local journal; see the [integration ledger](INTEGRATIONS.md) for protocol and validation limits. This document also describes the broader target architecture; unimplemented provider policies, context compaction, and richer UI remain in the [delivery plan](PLAN.md).
+**Status:** the [runtime decision](decisions/0001-direct-runtime.md) selects a direct TypeScript request loop. The terminal now has 25 cloud API connectors sharing a local journal; see the [integration ledger](INTEGRATIONS.md) for protocol and validation limits. This document also describes the broader target architecture; unimplemented provider policies and automatic context compaction remain in the [delivery plan](PLAN.md).
 
 ## System shape
 
@@ -75,7 +75,7 @@ A context packet contains the objective, user constraints, concise decisions, re
 
 Use deterministic trimming and task facts before adding model-generated summaries. If a summary needs a model call, route it through the same eligibility gate and record its usage. Reserve space for tools and output; tokenizer estimates are conservative and labeled. Never assume two providers count tokens identically.
 
-The current preview retains the visible conversation and objective and rejects requests beyond a conservative context budget; automatic compaction and editable pinned memory are pending. No vector database or embeddings in v0.1. Add SQLite text search only when simple recent-context selection becomes insufficient. Future cross-session project memory must be explicit and editable; do not silently mix unrelated repositories.
+The current preview retains the visible conversation and objective and rejects requests beyond a conservative context budget; automatic compaction is pending; /compact provides reviewed summaries and /pin provides explicit editable constraints. No vector database or embeddings in v0.1. Add SQLite text search only when simple recent-context selection becomes insufficient. Future cross-session project memory must be explicit and editable; do not silently mix unrelated repositories.
 
 ## Routing and allowances
 
@@ -136,3 +136,7 @@ On resume, compare workspace identity, branch/HEAD where applicable, dirty diff,
 After the engine decision, begin with one package containing `cli`, `session`, `routing`, `storage`, and `providers` modules. Add a `tools` module only for execution logic the chosen engine does not safely supply. Separate tests by behavior, not by a large framework taxonomy.
 
 Start with explicit functions and typed records. An adapter interface should emerge from the launch providers' shared needs: describe capabilities, submit/cancel a turn, normalize events, and report usage or its absence. Do not invent interfaces for future media services or autonomous agents before integrating one.
+
+## Native terminal capability layer
+
+`Capabilities` assembles the per-request tool catalog and prepares approved operations. The original receipt pipeline owns execution for built-ins, plugins and MCP tools. Jobs and persistent shells add their own durable lifecycle events and explicit crash reconciliation. `Store.context()` projects reviewed compaction over the unchanged transcript. Forks preserve settled tool receipts; read-only research delegation uses a separate branch. See [implemented features and remaining parity](DEEPSEEK-HARNESS.md).
