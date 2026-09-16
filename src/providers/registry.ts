@@ -1,3 +1,4 @@
+import { scaleway } from './specs/scaleway.js';
 import { fireworks } from './specs/fireworks.js';
 import { nvidia } from './specs/nvidia.js';
 import { cline } from './specs/cline.js';
@@ -25,6 +26,7 @@ export interface ProviderDefinition {
   create(key: string): Connector;
 }
 export const providers: ProviderDefinition[] = [
+  { id: 'scaleway', name: 'Scaleway', env: 'SCALEWAY_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(scaleway, key) },
   { id: 'fireworks', name: 'Fireworks AI', env: 'FIREWORKS_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(fireworks, key) },
   { id: 'nvidia', name: 'NVIDIA API Catalog', env: 'NVIDIA_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(nvidia, key) },
   { id: 'huggingface', name: 'Hugging Face', env: 'HF_TOKEN', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(huggingface, key) },
