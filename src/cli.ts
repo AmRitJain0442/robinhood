@@ -4,7 +4,8 @@ import { Terminal } from './ui/terminal.js';
 import { systemVault, type AccountVault, type SavedAccount } from './auth/vault.js';
 import { browserLogin, openBrowser, openRouterFlow, puterFlow } from './auth/browser.js';
 import { parseArgs } from 'node:util';
-import { homedir } from 'node:os';
+import { dataPath } from './paths.js';
+import { loginGemini } from './bridges/gemini-cli.js';
 import { realpath, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { OpenRouter } from './providers/openrouter.js';
@@ -21,6 +22,7 @@ const help = `Robinhood 0.0.1 / developer preview
   robinhood                           Open in the current project directory
   robinhood --workspace <directory>    Open a specific project
   robinhood demo                      Offline handoff demonstration
+  robinhood login gemini-cli           Sign in with Google in the native CLI
 
 Options: --workspace PATH, --data-dir PATH, --session ID, --help, --version
 
@@ -50,13 +52,11 @@ Provider integration does not guarantee free account eligibility or remaining to
 All tool calls require approval. Approved commands have your OS privileges.
 Ctrl+C cancels an active turn; Ctrl+C at the prompt exits. No telemetry.`;
 
-function dataPath(): string {
-  if (process.platform === 'win32') return path.join(process.env.LOCALAPPDATA ?? path.join(homedir(), 'AppData', 'Local'), 'Robinhood');
-  if (process.platform === 'darwin') return path.join(homedir(), 'Library', 'Application Support', 'Robinhood');
-  return path.join(process.env.XDG_DATA_HOME ?? path.join(homedir(), '.local', 'share'), 'robinhood');
-}
-
 async function main(): Promise<void> {
+  if (process.argv[2] === 'login') {
+    if (process.argv[3] !== 'gemini-cli' || process.argv.length !== 4) throw new Error('Use: robinhood login gemini-cli');
+    await loginGemini(); return;
+  }
   if (process.argv[2] === 'demo') { await demo(text => console.log(terminalText(text))); return; }
   const { values } = parseArgs({ options: { workspace: { type: 'string' }, 'data-dir': { type: 'string' }, session: { type: 'string' }, help: { type: 'boolean' }, version: { type: 'boolean' } } });
   if (values.help) { console.log(help); return; }

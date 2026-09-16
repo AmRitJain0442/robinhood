@@ -1,5 +1,6 @@
 // Official setup guides. Adding an API connector does not imply portable browser OAuth.
 export const setupGuides: Record<string, string> = {
+  'gemini-cli': 'https://geminicli.com/docs/get-started/authentication/',
   'kilo-cli': 'https://kilo.ai/docs/code-with-ai/platforms/cli',
   opencode: 'https://opencode.ai/docs/cli/',
   openrouter: 'https://openrouter.ai/settings/keys',
