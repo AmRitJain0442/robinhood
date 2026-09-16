@@ -29,6 +29,7 @@ Connectors are implemented one at a time and share the same local task journal. 
 | Cloudflare Workers AI | Account-scoped Chat Completions | Account-dependent; confirmation each request | HTTP tool contracts and account-path validation; real-account inference unverified |
 | AI21 | Non-streaming Chat Completions | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | AI Horde | Queued text generation; no coding tools | Public-data confirmation; anonymous or account key | HTTP submit/status/cancellation fixtures, public catalog; inference unverified |
+| Puter | Experimental native driver, non-streaming normalized chat | User auth token; account-dependent confirmation | Source-reviewed HTTP fixtures; live endpoint timed out, real account unverified |
 
 ## Connecting multiple providers
 
@@ -190,3 +191,9 @@ References: [chat request and streaming limitation](https://docs.ai21.com/refere
 `/connect horde` accepts a blank key for anonymous access, or `AI_HORDE_API_KEY`. Only active text models are listed. Requests use a conservative 8K context and 512-token output cap; worker support can vary. Polling is bounded to two minutes and failed or cancelled requests trigger best-effort deletion of their job. No duplicate submission is retried. A disconnect during submission can leave a remote job whose ID was never received. Volunteer workers receive the prompt: public data only. Generated text never becomes a tool call.
 
 References: [API schema](https://aihorde.net/api/), [developer overview](https://dev.aihorde.net/).
+
+## Puter evidence - checked 2026-09-16
+
+Connect with `/connect puter` or `PUTER_AUTH_TOKEN`, using a user auth token obtained through Puter's supported login flow. Robinhood does not ask for a Puter password or automatically create accounts. The experimental adapter implements the driver envelope reviewed in published `@heyputer/puter.js@2.6.3`, using direct cancellable HTTP with no SDK retries or upgrade dialogs. It currently supports the reviewed `gpt-4o-mini` route, requests normalized responses, and uses a conservative 64K budget. Browser login is not embedded. The public endpoint timed out from the development environment; fixture coverage is not a live account test.
+
+References: [Node authentication](https://docs.puter.com/getting-started/), [chat interface](https://docs.puter.com/AI/chat/), [response normalization](https://docs.puter.com/Objects/chatresponse/), [official SDK source](https://github.com/HeyPuter/puter/tree/main/src/puter-js).
