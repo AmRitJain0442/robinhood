@@ -24,6 +24,7 @@ Connectors are implemented one at a time and share the same local task journal. 
 | Sarvam AI | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Poolside | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Alibaba Model Studio | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
+| Ollama Cloud | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 
 ## Connecting multiple providers
 
@@ -155,3 +156,9 @@ References: [API overview](https://docs.poolside.ai/api/overview), [models](http
 Connect with `/connect alibaba` or `DASHSCOPE_API_KEY`. Uses the Singapore international endpoint and a conservative 64K app budget. Keys and free quotas are region-specific. Enable the provider's Free Quota Only setting where available; Robinhood cannot verify that switch or the remaining quota. Other regions are not silently substituted.
 
 References: [function calling](https://www.alibabacloud.com/help/en/model-studio/qwen-function-calling), [free quota controls](https://www.alibabacloud.com/help/en/model-studio/new-free-quota).
+
+## Ollama Cloud evidence - checked 2026-09-16
+
+Connect with `/connect ollama` or `OLLAMA_API_KEY`. Uses direct cloud access through the documented compatibility API, with a conservative 64K budget. No local daemon or model download is needed. Cloud starter allowance and paid subscription entitlement remain account-dependent.
+
+References: [cloud access](https://docs.ollama.com/cloud), [compatibility API](https://docs.ollama.com/api/openai-compatibility).
