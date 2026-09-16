@@ -27,9 +27,12 @@ export class Runner {
     if (this.capabilities.jobs.list(this.store, session).some(job => job.status === 'unknown')) throw new Error('A background job has an unknown outcome. Inspect /jobs and use /job-resolve before continuing.');
     if (this.capabilities.terminals.list(this.store, session).some(terminal => terminal.status === 'unknown')) throw new Error('A persistent terminal has an unknown outcome. Inspect /terminals and use /terminal-resolve before continuing.');
     if (prompt?.trim()) this.store.append(session.id, { role: 'user', content: this.secrets.redact(prompt) });
+    const previous = this.store.get(session.id).route;
+    const preferred = routes.findIndex(route => route.id === previous);
+    if (preferred > 0) routes = [routes[preferred]!, ...routes.slice(0, preferred), ...routes.slice(preferred + 1)];
     let index = 0;
     this.store.selectRoute(session.id, routes[0]!.id);
-    for (let step = 0; step < 12; step++) {
+    for (let step = 0; step < 100; step++) {
       signal.throwIfAborted();
       const route = routes[index]!;
       const promptProfile = promptForProvider(route.provider);
@@ -56,9 +59,11 @@ export class Runner {
         display.flush();
         if (partial) this.store.event(session.id, 'incomplete-output', { route: route.id, text: this.secrets.redact(partial) });
         this.store.event(session.id, 'request-error', { route: route.id, message: this.secrets.redact(String(error)), kind: error instanceof RouteError ? error.kind : 'unknown' });
-        if (!signal.aborted && error instanceof RouteError && ['quota', 'capacity'].includes(error.kind) && index + 1 < routes.length) {
+        if (!signal.aborted && error instanceof RouteError && ['quota', 'capacity', 'auth'].includes(error.kind) && index + 1 < routes.length) {
+          this.store.event(session.id, 'route-handoff', { from: route.id, to: routes[index + 1]!.id, reason: error.kind });
           ui.status(`${error.message} Saved state; switching to ${routes[++index]!.id}.`);
           this.store.selectRoute(session.id, routes[index]!.id);
+          step--; // Failed routes do not consume successful model steps.
           continue;
         }
         throw error;
@@ -103,6 +108,6 @@ export class Runner {
         ui.status(`${op.name}: ${state}. Receipt ${op.id.slice(0, 8)} saved.`);
       }
     }
-    ui.status('Paused after 12 model steps. Task state is saved; use /continue to proceed.');
+    ui.status('Paused after 100 model steps. Task state is saved; use /continue to proceed.');
   }
 }
