@@ -55,9 +55,9 @@ export class Capabilities {
   }
   async unload(name: string): Promise<void> { const extension = this.extensions.get(name); if (!extension) throw new Error('Extension not loaded.'); await extension.close?.(); this.extensions.delete(name); }
   async close(): Promise<void> {
-    await Promise.all([this.jobs.close(), this.terminals.close()]);
-    const failures = await Promise.allSettled([...this.extensions.keys()].map(name => this.unload(name)));
-    if (failures.some(result => result.status === 'rejected')) throw new Error('An extension did not shut down cleanly.');
+    const outcomes = await Promise.allSettled([this.jobs.close(), this.terminals.close(), ...[...this.extensions.keys()].map(name => this.unload(name))]);
+    const failures = outcomes.filter(result => result.status === 'rejected').map(result => result.reason);
+    if (failures.length) throw new AggregateError(failures, 'Some runtime processes did not shut down cleanly. Inspect saved process IDs.');
   }
   async prepare(context: CapabilityContext, name: string, raw: string): Promise<PreparedTool> {
     const { store, session } = context;

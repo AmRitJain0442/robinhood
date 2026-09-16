@@ -51,7 +51,7 @@ export class Terminals {
     host.on('close', () => {
       clearTimeout(handle.timer); state.status = state.exitCode !== undefined || handle.stopping ? 'closed' : 'unknown';
       startupFailed(new Error('Persistent shell host exited. Check optional node-pty installation and platform support.'));
-    try { store.event(session.id, 'terminal', state); } catch { state.status = 'unknown'; }
+      try { store.event(session.id, 'terminal', state); } catch { state.status = 'unknown'; }
       settle();
     });
     try { store.event(session.id, 'terminal', state); }
