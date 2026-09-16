@@ -23,6 +23,7 @@ Connectors are implemented one at a time and share the same local task journal. 
 | Scaleway | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Sarvam AI | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Poolside | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
+| Alibaba Model Studio | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 
 ## Connecting multiple providers
 
@@ -148,3 +149,9 @@ References: [chat API](https://docs.sarvam.ai/api-reference/chat/chat-completion
 Connect with `/connect poolside` or `POOLSIDE_API_KEY`. Uses Poolside-hosted inference and its authenticated model list, with a conservative 64K app budget. First-party promotional access is separate from the same model's availability on Kilo or OpenRouter; allowances are not added together.
 
 References: [API overview](https://docs.poolside.ai/api/overview), [models](https://docs.poolside.ai/get-started/supported-models).
+
+## Alibaba Model Studio evidence - checked 2026-09-16
+
+Connect with `/connect alibaba` or `DASHSCOPE_API_KEY`. Uses the Singapore international endpoint and a conservative 64K app budget. Keys and free quotas are region-specific. Enable the provider's Free Quota Only setting where available; Robinhood cannot verify that switch or the remaining quota. Other regions are not silently substituted.
+
+References: [function calling](https://www.alibabacloud.com/help/en/model-studio/qwen-function-calling), [free quota controls](https://www.alibabacloud.com/help/en/model-studio/new-free-quota).

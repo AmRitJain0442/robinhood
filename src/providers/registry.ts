@@ -1,3 +1,4 @@
+import { alibaba } from './specs/alibaba.js';
 import { poolside } from './specs/poolside.js';
 import { sarvam } from './specs/sarvam.js';
 import { scaleway } from './specs/scaleway.js';
@@ -28,6 +29,7 @@ export interface ProviderDefinition {
   create(key: string): Connector;
 }
 export const providers: ProviderDefinition[] = [
+  { id: 'alibaba', name: 'Alibaba Model Studio', env: 'DASHSCOPE_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(alibaba, key) },
   { id: 'poolside', name: 'Poolside', env: 'POOLSIDE_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(poolside, key) },
   { id: 'sarvam', name: 'Sarvam AI', env: 'SARVAM_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(sarvam, key) },
   { id: 'scaleway', name: 'Scaleway', env: 'SCALEWAY_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(scaleway, key) },
