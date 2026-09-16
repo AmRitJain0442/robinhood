@@ -1,3 +1,4 @@
+import { cohere } from './specs/cohere.js';
 import { ollama } from './specs/ollama.js';
 import { alibaba } from './specs/alibaba.js';
 import { poolside } from './specs/poolside.js';
@@ -30,6 +31,7 @@ export interface ProviderDefinition {
   create(key: string): Connector;
 }
 export const providers: ProviderDefinition[] = [
+  { id: 'cohere', name: 'Cohere', env: 'COHERE_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(cohere, key) },
   { id: 'ollama', name: 'Ollama Cloud', env: 'OLLAMA_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(ollama, key) },
   { id: 'alibaba', name: 'Alibaba Model Studio', env: 'DASHSCOPE_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(alibaba, key) },
   { id: 'poolside', name: 'Poolside', env: 'POOLSIDE_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(poolside, key) },

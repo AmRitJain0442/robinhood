@@ -28,6 +28,7 @@ for (const file of await readdir(new URL('../src/providers/specs/', import.meta.
         assert.equal(body[spec.maxTokenField ?? 'max_tokens'], 2048);
         assert.equal(body.stream, true);
         assert.equal(body.tools[0].type, 'function');
+        assert.equal(body.tool_choice, spec.omitToolChoice ? undefined : 'auto');
         assert.equal(body.model, spec.models[0]!.id);
         if (mode === 'quota') { res.writeHead(429, { 'retry-after': '9' }); res.end(); return; }
         res.setHeader('content-type', 'text/event-stream');

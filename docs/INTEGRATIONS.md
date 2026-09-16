@@ -25,6 +25,7 @@ Connectors are implemented one at a time and share the same local task journal. 
 | Poolside | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Alibaba Model Studio | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Ollama Cloud | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
+| Cohere | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 
 ## Connecting multiple providers
 
@@ -162,3 +163,9 @@ References: [function calling](https://www.alibabacloud.com/help/en/model-studio
 Connect with `/connect ollama` or `OLLAMA_API_KEY`. Uses direct cloud access through the documented compatibility API, with a conservative 64K budget. No local daemon or model download is needed. Cloud starter allowance and paid subscription entitlement remain account-dependent.
 
 References: [cloud access](https://docs.ollama.com/cloud), [compatibility API](https://docs.ollama.com/api/openai-compatibility).
+
+## Cohere evidence - checked 2026-09-16
+
+Connect with `/connect cohere` or `COHERE_API_KEY`. Uses Cohere's documented compatibility API and tool-capable Command model with a conservative 64K budget. Omits the undocumented tool_choice parameter and disables thinking. Trial access is account-dependent; no production entitlement or fixed daily token allocation is inferred.
+
+References: [compatibility API and supported parameters](https://docs.cohere.com/docs/compatibility-api), [trial limits](https://docs.cohere.com/docs/rate-limits).
