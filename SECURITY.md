@@ -10,7 +10,7 @@ The current development branch is the only supported version. There is no stable
 
 ## Credentials and project content
 
-- Provider credentials come from supported browser authorization, a hidden prompt, or the documented environment variable. Interactive connections are stored in Windows Credential Manager, macOS Keychain, or Linux Secret Service. There is no plaintext fallback: unavailable vaults mean process-only connections. Environment credentials are never copied into the vault. Credentials are not stored in the session database.
+- API connector credentials come from supported browser authorization, a hidden prompt, or the documented environment variable. Interactive connections are stored in Windows Credential Manager, macOS Keychain, or Linux Secret Service. There is no plaintext fallback: unavailable vaults mean process-only connections. Environment credentials are never copied into the vault. Credentials are not stored in the session database.
 - Saved accounts are shared across Robinhood workspaces and data directories for the current OS user. `/disconnect PROVIDER` removes the saved credential; revoke it at the provider to invalidate it remotely. Environment credentials will reload on restart if still set.
 - Browser authorization binds a temporary loopback listener to 127.0.0.1, validates a random callback path and Host, accepts one response, expires after three minutes, and closes on cancellation. OpenRouter additionally uses S256 PKCE. Puter's experimental authme flow returns a bearer token through the callback; it can appear in browser history. Robinhood never requests Google passwords or imports browser cookies.
 - Known keys are redacted from model-visible messages, saved tool results, terminal output, and exports. This is not a general-purpose scanner for every secret in source code.
@@ -22,11 +22,17 @@ The current development branch is the only supported version. There is no stable
 
 ## Execution boundaries
 
-File tools resolve workspace paths, exclude common credential paths, limit content size, and check old content hashes before replacement. Every operation needs an explicit approval.
+File tools resolve workspace paths, exclude common credential paths (including `.gemini`, `.copilot`, and `cli-profiles`), limit content size, and check old content hashes before replacement. Every operation needs an explicit approval.
 
 An approved shell command runs with your user privileges. These prompts are **not an OS sandbox**; commands can access files or services outside the workspace. The app imposes process/output limits and removes credential-like environment variables from tool processes, but it cannot prevent a deliberately approved command from reading files accessible to your account.
 
 If Robinhood cannot establish whether an interrupted command finished, it stops. Inspect `/pending`, check the workspace/process state, and use `/resolve` to record the outcome you verified. Do not mark an operation complete merely to bypass the pause.
+
+## Native CLI accounts
+
+Gemini and Copilot own login and refresh in dedicated profiles under the default Robinhood data directory, shared across workspaces and unaffected by session `--data-dir` overrides. Robinhood stores only their connection markers in its vault. Native credential storage follows the CLI's behavior; Copilot may fall back to plaintext when its credential store is unavailable. These credentials are not registered in Robinhood's key redactor. Profiles may retain conversation copies. Disconnecting a bridge does not erase its native profile or revoke provider authorization.
+
+All four CLI bridges disable native workspace tools and validate model proposals before Robinhood approvals. Gemini/Copilot launch with separate settings and no inherited API/account tokens. These controls are not an OS sandbox. Native engines may retry or make utility requests within the two-minute deadline. Account allowances remain unknown; account-based requests require explicit confirmation.
 
 ## Model access and cost
 

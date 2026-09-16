@@ -1,12 +1,15 @@
 # One terminal, your accounts
 
-Run `robinhood`, then `/connect`. Search the 25 cloud API connectors and the OpenCode CLI bridge, choose a connection method, and use `/models` to select a route. `/accounts` opens the same manager. `/disconnect PROVIDER` removes the local connection and its saved credential or anonymous connection marker.
+Run `robinhood`, then `/connect`. Search the 25 cloud API connectors and four CLI bridges (OpenCode, Kilo, Gemini, and Copilot), choose a connection method, and use `/models` to select a route. `/accounts` opens the same manager. `/disconnect PROVIDER` removes the local connection and its saved credential or anonymous connection marker.
 
 ## Supported methods
 
 | Providers | Connection method |
 | --- | --- |
 | OpenCode CLI bridge | Launch the isolated local engine; no credential required; [details](OPENCODE.md) |
+| Kilo CLI | Isolated anonymous engine; `/connect kilo-cli` |
+| Gemini CLI | `robinhood login gemini-cli`, then `/connect gemini-cli` |
+| GitHub Copilot CLI | `robinhood login copilot-cli`, then `/connect copilot-cli` |
 | OpenRouter | Browser authorization with S256 PKCE; API credential fallback |
 | Puter | Experimental browser authme flow; auth-token fallback |
 | Kilo, AI Horde | Anonymous access, or an account API credential |
@@ -18,10 +21,11 @@ Provider browser login may offer Google, but **a Google session is not a univers
 
 ## Persistence and recovery
 
-- Credentials use Windows Credential Manager, macOS Keychain, or Linux Secret Service. No plaintext file fallback. If the vault is unavailable or rejects a credential, the current connection remains usable until exit; an older saved credential may remain unchanged.
+- API and browser-flow credentials use Windows Credential Manager, macOS Keychain, or Linux Secret Service. No plaintext file fallback. If the vault is unavailable or rejects a credential, the current connection remains usable until exit; an older saved credential may remain unchanged.
 - Browser sign-in has a three-minute deadline. Ctrl+C cancels; cancellation or a failed exchange preserves the existing connection. A displayed authorization URL lets you open the flow manually when automatic browser launch fails. The browser must be able to reach the same machine's loopback listener; remote/headless terminals can use credential entry instead.
-- `/disconnect` removes local authorization, not the provider's remote key. Revoke keys on the provider website when needed. Remove environment variables separately.
-- A restored credential is not proof it remains valid. Expired or revoked credentials require reconnecting; model requests surface provider errors. There are no blind retries, quota bypasses, or silent paid fallbacks.
+- Native Gemini/Copilot login lives in dedicated CLI profiles, managed by each CLI rather than Robinhood's vault. `/disconnect` removes only their connection marker; cached authorization remains. See [CLI account storage](CLI-BRIDGES.md).
+- For API connectors, `/disconnect` removes local authorization, not the provider's remote key. Revoke keys on the provider website when needed. Remove environment variables separately.
+- A restored credential is not proof it remains valid. Expired or revoked credentials require reconnecting; model requests surface provider errors. Robinhood does not bypass quotas or silently switch to paid routes; native engines may retry internally within the request deadline.
 - Model selection remains explicit after restart. Saved task history is independent of account credentials.
 
 ## Terminal controls
@@ -32,7 +36,7 @@ Type to filter account and model menus; use arrow keys and Enter to choose, Esca
 
 Local fixtures cover PKCE construction, callback path rejection, replay prevention, cancellation, provider denial, listener cleanup, vault serialization and failures, and picker search. A Windows vault round trip and real terminal navigation were checked. Real-account OpenRouter/Puter authorization still needs authenticated end-to-end validation. Existing provider model/inference limitations remain in the [integration ledger](INTEGRATIONS.md).
 
-Free allowances remain provider-specific and unknown unless explicitly observed. This release does not implement balance discovery, automatic live-provider fallback, official coding-agent bridges, or universal Google SSO.
+Free allowances remain provider-specific and unknown unless explicitly observed. This release does not implement balance discovery, automatic live-provider fallback, or universal Google SSO.
 
 ## Extending account linking
 

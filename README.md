@@ -4,7 +4,7 @@
 
 A local coding terminal with durable task memory, explicit tool approvals, and model routing built around the free access you actually have.
 
-> **Developer preview — 0.0.1.** The terminal and connectors in the [integration ledger](docs/INTEGRATIONS.md) are implemented. There are 25 cloud API connectors: 23 standard coding connectors, experimental Puter support, and text-only AI Horde. Kilo has a successful anonymous live smoke test; other account inference remains unverified. Official agent logins and automatic live-provider switching are not implemented.
+> **Developer preview — 0.0.1.** There are 25 cloud API connectors and four native CLI bridges: OpenCode, Kilo, Gemini, and GitHub Copilot. Native Google/GitHub login is supported; authenticated inference remains unverified. OpenCode and the direct Kilo API passed anonymous text smoke tests. Automatic live-provider switching is pending. See the [integration ledger](docs/INTEGRATIONS.md).
 
 ## Try the handoff demo
 
@@ -48,7 +48,17 @@ Inside the terminal:
 
 **Want OpenCode's free models without an API key?** Run `/connect opencode`, choose **Launch OpenCode free-model bridge**, then `/models opencode`. Robinhood launches the real OpenCode CLI engine in the background while keeping its own UI, memory, and approvals. [How the bridge works and its limits](docs/OPENCODE.md).
 
-1. Run `/connect` (or `/accounts`) to search all 25 providers. OpenRouter supports browser authorization; Puter has an experimental browser login. Choose Google on the provider's sign-in page if offered. Kilo and AI Horde also offer anonymous access.
+**More native CLI engines:**
+
+| Engine | One-time setup in your terminal | Inside Robinhood |
+| --- | --- | --- |
+| Kilo CLI | No login required | `/connect kilo-cli` |
+| Gemini CLI | `robinhood login gemini-cli` | `/connect gemini-cli` |
+| GitHub Copilot CLI | `robinhood login copilot-cli` | `/connect copilot-cli` |
+
+Then use `/models PROVIDER`. These run the actual pinned CLIs behind Robinhood's memory and approvals. Gemini and Copilot use their own account allowances; Copilot may consume paid credits. All four native executables pass local protocol fixtures. Kilo CLI live probes returned an empty response or quota error; Google/GitHub inference requires account validation. [Setup and validation details](docs/CLI-BRIDGES.md).
+
+1. Run `/connect` (or `/accounts`) to search 25 API connectors and four CLI bridges. OpenRouter supports browser authorization; Puter has an experimental browser login. Choose Google on the provider's sign-in page if offered. Kilo and AI Horde also offer anonymous access.
 2. For other providers, choose **Open official account setup**, sign in on their site, and paste an API credential once. Credentials are saved in your OS vault and restored on launch. If the vault is unavailable, the connection lasts for the current process only. Environment credentials take precedence.
 3. Run `/models` to search and select a model, or `/use PROVIDER MODEL_ID` to switch directly. Task memory stays in the session.
 4. Describe a task. Review and approve each requested tool operation. Use Page Up / Page Down to inspect longer output; Ctrl+C cancels active work.

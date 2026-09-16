@@ -2,16 +2,16 @@
 
 This work extends the existing OpenCode bridge one engine at a time. Each adapter must retain Robinhood's task history, approvals and receipts, stop its owned process on cancellation, and report account requirements accurately.
 
-## Implementation sequence
+## Completed implementation
 
 1. Share the OpenCode-compatible process boundary without changing OpenCode behavior.
 2. Add Kilo CLI with a pinned engine, isolated configuration, catalog-based free-model selection, and native protocol tests.
 3. Add Gemini CLI with native Google sign-in in a dedicated profile, headless requests, denied native tools, and portable structured suggestions.
-4. Assess further CLIs against the same execution and authentication requirements. Document unsupported integrations instead of exposing API-key placeholders as CLI bridges.
+4. Add GitHub Copilot CLI with native account login, validated JSONL responses, and real-executable tool-boundary tests.
 
 Every functional step gets its own tested commit. Live checks use only public synthetic prompts. Authenticated checks require an actual signed-in account and are labeled unverified until performed.
 
-## Access principles
+## Engines
 
 ### Kilo CLI (implemented)
 
@@ -23,7 +23,7 @@ The actual Kilo executable passed a local model fixture covering tool denial in 
 
 Run `robinhood login gemini-cli` in a normal terminal, complete Gemini's Google sign-in, then use `/quit` to close the native CLI. Start `robinhood`, run `/connect gemini-cli`, and choose a model with `/models gemini-cli`. No API key is requested. This is distinct from `/connect gemini`, which uses the Gemini API.
 
-The pinned Gemini CLI 0.60.0 owns OAuth and refresh in a dedicated profile under Robinhood's default application data directory (`cli-profiles/gemini`). Existing personal Gemini settings and credentials are not copied. Profiles are shared across Robinhood workspaces and `--data-dir` overrides, just like saved accounts. `/disconnect` removes the Robinhood connection marker; it does not revoke Google's native cached authorization. Use the native CLI's `/logout` through `robinhood login gemini-cli` to remove that authorization. Gemini's own credential storage is separate from Robinhood's OS vault.
+The pinned Gemini CLI 0.60.0 owns OAuth and refresh in a dedicated profile under Robinhood's default application data directory (`cli-profiles/gemini`). Existing personal Gemini settings and credentials are not copied. Profiles are shared across Robinhood workspaces and `--data-dir` overrides, just like saved accounts. `/disconnect` removes the Robinhood connection marker; it does not revoke Google's native cached authorization. Manage sign-out with Gemini's native account controls; revoke remote authorization in your Google account settings. Gemini's own credential storage is separate from Robinhood's OS vault.
 
 Headless requests use stdin for task content, a dedicated empty workspace, no API-key environment fallback, disabled hooks/extensions/skills, an empty native tool registry, and a deny-all tool policy. Validated JSON proposals go through Robinhood's approvals. Replies appear after completion. Native CLI state can contain temporary conversation copies; it is not encrypted by Robinhood. Remaining free allowance and model eligibility depend on the Google account; a successful sign-in does not prove a free balance. The model list is a reviewed list of CLI model IDs, not account-specific discovery. Gemini can route or retry internally within the request deadline.
 
@@ -41,6 +41,8 @@ The real Copilot executable passed a loopback model fixture: no native tool defi
 
 References: [Copilot availability](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/about-copilot-cli), [native authentication and CLI flags](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference), [configuration and credential storage](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference).
 
+## Access principles
+
 - A CLI is not an additional token allowance unless its provider grants one.
 - The CLI owns its supported login and token refresh. Robinhood does not extract browser cookies or reuse a private OAuth client.
 - Advertised free routes, account-dependent allowances, and subscriptions must remain distinct.
@@ -48,3 +50,7 @@ References: [Copilot availability](https://docs.github.com/en/copilot/concepts/a
 - Native tools are disabled; only validated suggestions enter Robinhood's approved execution path.
 
 References: [Kilo CLI](https://kilo.ai/docs/code-with-ai/platforms/cli), [Gemini headless mode](https://geminicli.com/docs/cli/headless/), [Gemini policy engine](https://geminicli.com/docs/reference/policy-engine/).
+
+## Remaining adapters
+
+Codex app-server, Kiro ACP, Cursor, Cline CLI, Antigravity, CodeBuddy, Qoder, and Jules need separate adapters and validation. Qwen CLI is not presented as a free OAuth source: its maintainers announced closure of that free entry point on April 15, 2026. [Qwen policy announcement](https://github.com/QwenLM/qwen-code/issues/3203). Existing gateway connectors may offer Qwen models under their own allowances.
