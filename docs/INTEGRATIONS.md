@@ -22,6 +22,7 @@ Connectors are implemented one at a time and share the same local task journal. 
 | Fireworks AI | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Scaleway | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Sarvam AI | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
+| Poolside | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 
 ## Connecting multiple providers
 
@@ -141,3 +142,9 @@ References: [tool integration](https://www.scaleway.com/en/docs/generative-apis/
 Connect with `/connect sarvam` or `SARVAM_API_KEY`. Uses the native subscription-key header and the documented v1 chat/tool interface. Reasoning is disabled for portable continuation. Audio, translation and beta v2 third-party models are separate APIs and are not exposed here.
 
 References: [chat API](https://docs.sarvam.ai/api-reference/chat/chat-completions), [authentication](https://docs.sarvam.ai/api-reference/authentication).
+
+## Poolside evidence - checked 2026-09-16
+
+Connect with `/connect poolside` or `POOLSIDE_API_KEY`. Uses Poolside-hosted inference and its authenticated model list, with a conservative 64K app budget. First-party promotional access is separate from the same model's availability on Kilo or OpenRouter; allowances are not added together.
+
+References: [API overview](https://docs.poolside.ai/api/overview), [models](https://docs.poolside.ai/get-started/supported-models).
