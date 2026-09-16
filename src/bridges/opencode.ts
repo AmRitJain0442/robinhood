@@ -63,6 +63,7 @@ export function engineCompletion(data: unknown, label = 'OpenCode'): Completion 
   }
   const result = object(info.structured);
   if (typeof result.content !== 'string' || !Array.isArray(result.tool_calls) || result.tool_calls.length > 8) throw new RouteError(`${label} did not return a valid structured response. No tools were executed.`, 'protocol');
+  if (!result.content.trim() && result.tool_calls.length === 0) throw new RouteError(`${label} returned an empty response. Choose another model or try later.`, 'protocol');
   const calls = result.tool_calls.map(item => {
     const call = object(item);
     if (!toolDefinitions.some(tool => tool.function.name === call.name) || typeof call.arguments !== 'string') throw new RouteError(`${label} returned an unsupported tool.`, 'protocol');

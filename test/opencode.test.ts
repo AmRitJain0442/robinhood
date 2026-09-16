@@ -42,6 +42,7 @@ test('OpenCode malformed structured responses never become executable tools', ()
     assert.throws(() => engineCompletion({ info: { structured } }));
   }
   assert.throws(() => engineCompletion({ info: { error: { name: 'APIError' } } }));
+  assert.throws(() => engineCompletion({ info: { structured: { content: '', tool_calls: [] } } }), /empty response/);
 });
 
 test('OpenCode cancellation closes the owned engine and allows a fresh connection', async () => {
