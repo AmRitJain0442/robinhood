@@ -11,7 +11,7 @@ for (const file of await readdir(new URL('../src/providers/specs/', import.meta.
   const module = await import(new URL(`../src/providers/specs/${file}`, import.meta.url).href);
   const specifications = file === 'cloudflare.js' ? [module.cloudflare('a'.repeat(32))] : Object.values(module);
   for (const spec of specifications as CompatibleSpec[]) {
-    if (!spec.models?.length) continue;
+    if (!spec.models?.length || spec.nonStreaming) continue;
     test(`${spec.name}: approved tool round-trip, portable memory, quota and interruption contract`, async () => {
       let requests = 0, posts = 0, mode = 'tool';
       const server = createServer(async (req, res) => {

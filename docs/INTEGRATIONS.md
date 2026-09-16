@@ -27,6 +27,7 @@ Connectors are implemented one at a time and share the same local task journal. 
 | Ollama Cloud | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Cohere | Chat Completions streaming | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 | Cloudflare Workers AI | Account-scoped Chat Completions | Account-dependent; confirmation each request | HTTP tool contracts and account-path validation; real-account inference unverified |
+| AI21 | Non-streaming Chat Completions | Account-dependent; confirmation each request | HTTP contract fixtures; real-account inference unverified |
 
 ## Connecting multiple providers
 
@@ -176,3 +177,9 @@ References: [compatibility API and supported parameters](https://docs.cohere.com
 `/connect cloudflare` asks for an API token and account ID. Environment setup uses `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. The reviewed Llama tool model has a 24K context limit. No Worker deployment is created. The shared neuron allowance is not converted into a guaranteed daily token balance.
 
 References: [compatibility endpoint](https://developers.cloudflare.com/workers-ai/configuration/open-ai-compatibility/), [model and limits](https://developers.cloudflare.com/workers-ai/models/llama-3.3-70b-instruct-fp8-fast/), [pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/).
+
+## AI21 evidence - checked 2026-09-16
+
+Connect with `/connect ai21` or `AI21_API_KEY`. Uses non-streaming requests because the documented Jamba tool interface requires stream=false. Responses are bounded and validated before any tool can execute. The static model list uses a conservative 64K budget; trial credits are account-dependent.
+
+References: [chat request and streaming limitation](https://docs.ai21.com/reference/jamba-1-6-api-ref), [function calling](https://docs.ai21.com/docs/function-calling).

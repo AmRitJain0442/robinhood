@@ -4,6 +4,50 @@ import { RouteError, type Completion, type ToolCall, type Usage } from '../types
 export const object = (value: unknown): Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
 const nonnegative = (value: unknown): number | undefined => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
 
+export async function boundedJSON(response: Response): Promise<unknown> {
+  if (!response.ok) { await response.body?.cancel(); throw statusError(response.status, response.headers.get('retry-after')); }
+  if (!response.body || !response.headers.get('content-type')?.includes('application/json')) throw new RouteError('Expected a JSON response.', 'protocol');
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = []; let bytes = 0;
+  try {
+    while (true) {
+      const chunk = await reader.read(); if (chunk.done) break;
+      bytes += chunk.value.length;
+      if (bytes > 1024 * 1024) throw new RouteError('Provider response exceeded 1 MiB.', 'protocol');
+      chunks.push(chunk.value);
+    }
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
+}
+
+function validateCalls(calls: ToolCall[]): void {
+  if (calls.length > 8) throw new RouteError('Excessive tool calls.', 'protocol');
+  const ids = new Set<string>();
+  for (const call of calls) {
+    if (!/^[\w.:-]{1,200}$/.test(call.id) || !/^[\w-]{1,64}$/.test(call.function.name) || ids.has(call.id)) throw new RouteError('Invalid or duplicate tool call identifier.', 'protocol');
+    ids.add(call.id);
+    try { JSON.parse(call.function.arguments); } catch { throw new RouteError('Incomplete tool arguments were not executed.', 'protocol'); }
+  }
+}
+
+export function jsonCompletion(payload: unknown, onText: (text: string) => void): Completion {
+  const data = object(payload), choice = object(Array.isArray(data.choices) ? data.choices[0] : undefined);
+  if (data.error || !['stop', 'tool_calls'].includes(String(choice.finish_reason))) throw new RouteError('Provider response is incomplete or failed.', 'protocol');
+  const message = object(choice.message);
+  if (message.role !== 'assistant' || message.content !== null && message.content !== undefined && typeof message.content !== 'string') throw new RouteError('Malformed assistant response.', 'protocol');
+  if (message.tool_calls !== undefined && message.tool_calls !== null && !Array.isArray(message.tool_calls)) throw new RouteError('Malformed tool calls.', 'protocol');
+  const calls: ToolCall[] = (Array.isArray(message.tool_calls) ? message.tool_calls : []).map(value => {
+    const call = object(value), fn = object(call.function);
+    if (call.type !== 'function' || typeof call.id !== 'string' || typeof fn.name !== 'string' || typeof fn.arguments !== 'string') throw new RouteError('Malformed tool call.', 'protocol');
+    return { id: call.id, type: 'function', function: { name: fn.name, arguments: fn.arguments } };
+  });
+  validateCalls(calls);
+  const content = typeof message.content === 'string' ? message.content : null;
+  if (content) onText(content);
+  const usage = object(data.usage);
+  return { message: { role: 'assistant', content, ...(calls.length ? { tool_calls: calls } : {}) }, usage: { inputTokens: nonnegative(usage.prompt_tokens), outputTokens: nonnegative(usage.completion_tokens) } };
+}
+
 export function statusError(status: number, retry: string | null): RouteError {
   const seconds = retry === null ? NaN : Number(retry);
   const parsedDate = retry === null ? NaN : Date.parse(retry);
@@ -70,12 +114,7 @@ export async function parseCompletion(response: Response, onText: (text: string)
     }
     if (!done || !finished) throw new RouteError('Provider stream disconnected before completion.', 'protocol');
     const toolCalls = [...calls.entries()].sort(([a], [b]) => a - b).map(([, call]) => call);
-    const ids = new Set<string>();
-    for (const call of toolCalls) {
-      if (!/^[\w.:-]{1,200}$/.test(call.id) || !/^[\w-]{1,64}$/.test(call.function.name) || ids.has(call.id)) throw new RouteError('Invalid or duplicate tool call identifier.', 'protocol');
-      ids.add(call.id);
-      try { JSON.parse(call.function.arguments); } catch { throw new RouteError('Incomplete tool arguments were not executed.', 'protocol'); }
-    }
+    validateCalls(toolCalls);
     return { message: { role: 'assistant', content: content || null, ...(toolCalls.length ? { tool_calls: toolCalls } : {}) }, usage };
   } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
