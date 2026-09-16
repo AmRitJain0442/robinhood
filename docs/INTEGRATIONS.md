@@ -201,7 +201,7 @@ References: [Node authentication](https://docs.puter.com/getting-started/), [cha
 
 ## Scope and remaining validation
 
-All 25 cloud API candidates in the research inventory have an implementation, with the limitations above. This does not cover every model on each platform, every way to obtain credits, or every consumer login. A gateway's model count is not a count of independent free allowances.
+All 25 cloud API candidates in the research inventory have an implementation, with the limitations above. An additional [OpenCode CLI bridge](OPENCODE.md) launches the actual engine and routes advertised free models without an API key; anonymous Big Pickle passed a live smoke test. The CLI bridge is distinct from the direct Zen API connector. This does not cover every model on each platform, every way to obtain credits, or every consumer login. A gateway's model count is not a count of independent free allowances.
 
 Official agent bridges (Antigravity, Codex app-server, Copilot, Kiro ACP, Cursor, CodeBuddy, Qoder, and Jules) remain unimplemented. Their login, approval, process/session lifecycle, and crash recovery need separate adapters; they are not represented by API-key placeholders. Local inference runtimes and research/search/media services are also separate from these 25 cloud connectors.
 

@@ -1,5 +1,7 @@
 # 0001: own the model-request and tool-receipt boundaries
 
+**Update, September 16, 2026:** the direct runtime remains the default. An opt-in [OpenCode CLI bridge](../OPENCODE.md) now uses an isolated engine for model requests while keeping execution and durable receipts in Robinhood. It explicitly discloses OpenCode's internal retries. The experiment and original decision below are historical evidence.
+
 - **Date:** 2026-09-15
 - **Decision:** use one small direct API runtime for the initial application.
 - **Evidence:** OpenCode 1.18.31 / SDK 1.18.31, tested on native Windows with Node 24.13.1.

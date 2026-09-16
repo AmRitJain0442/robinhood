@@ -1,5 +1,6 @@
 // Official setup guides. Adding an API connector does not imply portable browser OAuth.
 export const setupGuides: Record<string, string> = {
+  opencode: 'https://opencode.ai/docs/cli/',
   openrouter: 'https://openrouter.ai/settings/keys',
   puter: 'https://docs.puter.com/getting-started/',
   horde: 'https://aihorde.net/',
@@ -28,6 +29,6 @@ export const setupGuides: Record<string, string> = {
 };
 
 export function accountPriority(id: string): number {
-  const index = ['openrouter', 'kilo', 'puter', 'gemini', 'horde'].indexOf(id);
+  const index = ['openrouter', 'opencode', 'kilo', 'puter', 'gemini', 'horde'].indexOf(id);
   return index === -1 ? 100 : index;
 }

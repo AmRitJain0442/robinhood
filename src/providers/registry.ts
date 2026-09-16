@@ -1,4 +1,5 @@
 import { ai21 } from './specs/ai21.js';
+import { OpenCodeBridge } from '../bridges/opencode.js';
 import { Horde } from './horde.js';
 import { Puter } from './puter.js';
 import { cohere } from './specs/cohere.js';
@@ -36,6 +37,7 @@ export interface ProviderDefinition {
   create(key: string, configuration?: string): Connector;
 }
 export const providers: ProviderDefinition[] = [
+  { id: 'opencode', name: 'OpenCode CLI bridge', env: 'ROBINHOOD_OPENCODE', anonymous: true, access: 'Isolated local OpenCode engine; advertised free models; public-data confirmation; internal retries possible', create: () => new OpenCodeBridge() },
   { id: 'puter', name: 'Puter user auth token', env: 'PUTER_AUTH_TOKEN', access: 'Experimental driver protocol; account-dependent; confirmation each request', create: key => new Puter(key) },
   { id: 'horde', name: 'AI Horde (blank key for anonymous access)', env: 'AI_HORDE_API_KEY', anonymous: true, access: 'Public text only; queued volunteer service; no coding tools', create: key => new Horde(key) },
   { id: 'ai21', name: 'AI21', env: 'AI21_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(ai21, key) },

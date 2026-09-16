@@ -1,11 +1,12 @@
 # One terminal, your accounts
 
-Run `robinhood`, then `/connect`. Search by provider name, choose a connection method, and use `/models` to select a route. `/accounts` opens the same manager. `/disconnect PROVIDER` removes the local connection and its saved credential.
+Run `robinhood`, then `/connect`. Search the 25 cloud API connectors and the OpenCode CLI bridge, choose a connection method, and use `/models` to select a route. `/accounts` opens the same manager. `/disconnect PROVIDER` removes the local connection and its saved credential or anonymous connection marker.
 
 ## Supported methods
 
 | Providers | Connection method |
 | --- | --- |
+| OpenCode CLI bridge | Launch the isolated local engine; no credential required; [details](OPENCODE.md) |
 | OpenRouter | Browser authorization with S256 PKCE; API credential fallback |
 | Puter | Experimental browser authme flow; auth-token fallback |
 | Kilo, AI Horde | Anonymous access, or an account API credential |

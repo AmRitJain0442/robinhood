@@ -46,6 +46,8 @@ Robinhood uses your current directory as the workspace. You can also run `robinh
 
 Inside the terminal:
 
+**Want OpenCode's free models without an API key?** Run `/connect opencode`, choose **Launch OpenCode free-model bridge**, then `/models opencode`. Robinhood launches the real OpenCode CLI engine in the background while keeping its own UI, memory, and approvals. [How the bridge works and its limits](docs/OPENCODE.md).
+
 1. Run `/connect` (or `/accounts`) to search all 25 providers. OpenRouter supports browser authorization; Puter has an experimental browser login. Choose Google on the provider's sign-in page if offered. Kilo and AI Horde also offer anonymous access.
 2. For other providers, choose **Open official account setup**, sign in on their site, and paste an API credential once. Credentials are saved in your OS vault and restored on launch. If the vault is unavailable, the connection lasts for the current process only. Environment credentials take precedence.
 3. Run `/models` to search and select a model, or `/use PROVIDER MODEL_ID` to switch directly. Task memory stays in the session.
@@ -65,6 +67,7 @@ Your conversation and approved tool results are sent to the selected provider an
 | Terminal | Full-screen interface, responsive account/status panel, searchable account and model pickers, streaming replies, and scrollable history |
 | Accounts | OpenRouter browser authorization, experimental Puter browser login, anonymous Kilo/Horde, and OS-vault credential persistence |
 | Provider connectors | See the [integration ledger](docs/INTEGRATIONS.md) for protocols, access gates, and validation status |
+| OpenCode CLI | Optional local engine bridge for advertised free models; anonymous Big Pickle live smoke passed |
 | Memory | SQLite conversation, objective, usage observations, and durable tool receipts |
 | Tools | List a directory, read a file, create/replace a file with a hash check, and run a bounded approved command |
 | Recovery | Known completed tools stay completed; uncertain crash outcomes block continuation until reconciled |

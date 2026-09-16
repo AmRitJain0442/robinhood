@@ -30,6 +30,8 @@ If Robinhood cannot establish whether an interrupted command finished, it stops.
 
 ## Model access and cost
 
+The optional [OpenCode CLI bridge](docs/OPENCODE.md) launches an isolated local engine with no personal credentials. Its native workspace tools are denied; structured suggestions go through Robinhood's normal approval and receipt flow. The engine may retry internally within a two-minute deadline, and its zero-price catalog check applies per bridge request. This is a different request boundary from the direct API adapters. Temporary engine copies of task context are removed on normal shutdown; forced crashes can leave them in the OS temp directory.
+
 The implemented connector checks OpenRouter's catalog before each request and admits only explicit free, tool-capable routes with zero published pricing. It requests no gateway fallback and makes no implicit transport retries. Unknown pricing blocks the request.
 
 Catalog evidence does not guarantee provider capacity, billing correctness, or compatibility with every model. Account-dependent connectors require explicit approval for each request and may consume credits or incur charges depending on the account. They do not enable silent paid fallback. The preview does not implement a general free-credit balance checker. No model credentials are needed in CI.

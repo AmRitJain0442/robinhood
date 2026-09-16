@@ -33,6 +33,7 @@
     "typescript": "6.0.3"
   },
   "optionalDependencies": {
-    "@napi-rs/keyring": "2.1.0"
+    "@napi-rs/keyring": "2.1.0",
+    "opencode-ai": "1.18.31"
   }
 }

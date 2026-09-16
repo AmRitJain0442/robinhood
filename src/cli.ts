@@ -129,9 +129,9 @@ async function main(): Promise<void> {
           const flow = id === 'openrouter' ? openRouterFlow : id === 'puter' ? puterFlow : undefined;
           const method = await terminal.select(`Connect ${entry.name}`, [
             ...(flow ? [{ value: 'browser', label: 'Sign in with your browser', detail: id === 'puter' ? 'experimental Puter integration' : 'authorize Robinhood on OpenRouter' }] : []),
-            ...(entry.anonymous ? [{ value: 'anonymous', label: 'Continue without an account', detail: 'shared limits apply' }] : []),
-            { value: 'key', label: 'Use an API credential', detail: 'saved in your OS credential vault' },
-            ...(setupGuides[id] ? [{ value: 'setup', label: 'Open official account setup', detail: 'sign in there, then paste a credential once' }] : []),
+            ...(entry.anonymous ? [{ value: 'anonymous', label: id === 'opencode' ? 'Launch OpenCode free-model bridge' : 'Continue without an account', detail: 'shared limits apply' }] : []),
+            ...(id === 'opencode' ? [] : [{ value: 'key', label: 'Use an API credential', detail: 'saved in your OS credential vault' }]),
+            ...(setupGuides[id] && id !== 'opencode' ? [{ value: 'setup', label: 'Open official account setup', detail: 'sign in there, then paste a credential once' }] : []),
           ]);
           terminal.line(`Task context goes to ${entry.name} and its upstream services. ${entry.access}.`);
           let key = '';
@@ -156,6 +156,7 @@ async function main(): Promise<void> {
           if (key) secrets.add(key);
           const configuration = entry.configuration ? process.env[entry.configuration.env] ?? (await terminal.question(`${entry.configuration.prompt}: `)).trim() : undefined;
           const connection = entry.create(key, configuration);
+          await connections.get(entry.id)?.close?.();
           connections.set(entry.id, connection);
           selectedProvider = entry.id;
           routes = [];
@@ -170,6 +171,7 @@ async function main(): Promise<void> {
           const id = argument || selectedProvider;
           providerDefinition(id);
           if (vault) await vault.remove(id);
+          await connections.get(id)?.close?.();
           connections.delete(id);
           routes = routes.filter(route => route.provider !== id);
           terminal.line(`${id} unlinked and saved credential removed. Environment credentials, if set, will reload on restart.`);
@@ -259,6 +261,7 @@ async function main(): Promise<void> {
     }
   } finally {
     process.removeListener('SIGINT', interrupt);
+    await Promise.allSettled([...connections.values()].map(connection => connection.close?.()));
     terminal.close();
     store.close();
   }

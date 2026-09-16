@@ -28,12 +28,14 @@ export interface Route {
   provider: string;
   model: string;
   manualApproval?: string;
-  // Must enforce eligibility before every inference request. No implicit retries.
+  // Direct routes enforce eligibility per inference request without implicit retries.
+  // External engines must disclose their own retry and eligibility-check boundaries.
   complete(messages: Message[], signal: AbortSignal, onText: (text: string) => void, consent?: { confirmed: boolean }): Promise<Completion>;
 }
 
 export interface ModelInfo { id: string; context: number }
 export interface Connector {
+  close?(): Promise<void>;
   models(signal?: AbortSignal): Promise<ModelInfo[]>;
   route(model: string): Route;
 }
