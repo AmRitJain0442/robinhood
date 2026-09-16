@@ -26,6 +26,7 @@ import { delegateTask } from './delegation.js';
 import { Terminals } from './terminals.js';
 import { readWorkflow, runWorkflow } from './workflow.js';
 import { prepareTool } from './tools.js';
+import { Approvals, approvalInstructions } from './approvals.js';
 
 const help = `Robinhood 0.0.1 / developer preview
 
@@ -35,7 +36,7 @@ const help = `Robinhood 0.0.1 / developer preview
   robinhood login gemini-cli           Sign in with Google in the native CLI
   robinhood login copilot-cli          Sign in with GitHub in the native CLI
 
-Options: --workspace PATH, --data-dir PATH, --session ID, --help, --version
+Options: --workspace PATH, --data-dir PATH, --session ID, --yolo (default), --ask, --help, --version
 
 In the terminal:
   /connect [PROVIDER]     Link an account; browser login where supported
@@ -49,6 +50,7 @@ In the terminal:
   /continue               Continue the saved task without adding a new message
   /memory                 Inspect the task's saved conversation
   /prompt                 Inspect the active system prompt and fingerprint
+  /permissions yolo|ask   Change permission prompts for this process
   /plan on|off            Toggle read-only planning for this session
   /todos                  Inspect the durable task checklist
   /goal TEXT              Set an explicit goal; /goal shows its status
@@ -75,15 +77,16 @@ In the terminal:
   /resolve ID NOTE        Record the outcome you verified for an uncertain operation
   /reconcile              Accept a changed checkout after inspecting the workspace
   /status                 Inspect locally observed requests and usage
-  /export PATH            Export this session after confirmation; never overwrite a file
-  /delete                 Delete this session after confirmation
+  /export PATH            Export this session; never overwrite a file
+  /delete                 Delete this session (not workspace files)
   /disconnect             Unlink account and remove its saved credential
   /quit                   Save and exit
 
 Providers: ${providers.map(provider => provider.id).join(', ')}.
-Account-dependent routes require explicit confirmation for each request.
+YOLO is the default: tools and selected-account requests run without permission prompts.
+Use --ask or /permissions ask to require confirmations. Account requests may consume paid credits.
 Provider integration does not guarantee free account eligibility or remaining tokens.
-All tool calls require approval. Approved commands have your OS privileges.
+Commands have your OS privileges. Plan mode and recovery checks still apply.
 Ctrl+C cancels an active turn; Ctrl+C at the prompt exits. No telemetry.`;
 
 async function main(): Promise<void> {
@@ -93,7 +96,8 @@ async function main(): Promise<void> {
     return;
   }
   if (process.argv[2] === 'demo') { await demo(text => console.log(terminalText(text))); return; }
-  const { values } = parseArgs({ options: { workspace: { type: 'string' }, 'data-dir': { type: 'string' }, session: { type: 'string' }, help: { type: 'boolean' }, version: { type: 'boolean' } } });
+  const { values } = parseArgs({ options: { workspace: { type: 'string' }, 'data-dir': { type: 'string' }, session: { type: 'string' }, yolo: { type: 'boolean' }, ask: { type: 'boolean' }, help: { type: 'boolean' }, version: { type: 'boolean' } } });
+  if (values.yolo && values.ask) throw new Error('Choose --yolo or --ask, not both.');
   if (values.help) { console.log(help); return; }
   if (values.version) { console.log('0.0.1'); return; }
   if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error('An interactive terminal is required. Run npm run demo for an account-free check.');
@@ -108,20 +112,19 @@ async function main(): Promise<void> {
   let active: AbortController | undefined;
   let vault: AccountVault | undefined;
   const capabilities = new Capabilities(new Jobs(secrets), new Terminals(secrets));
+  const approvals = new Approvals(values.ask ? 'ask' : 'yolo', (description, signal) => {
+    terminal.line(description);
+    return terminal.question('Allow once? [y/N] ', signal);
+  }, decision => { if (current) store.event(current.id, 'permission-decision', { ...decision, description: secrets.redact(decision.description) }); });
   const interrupt = () => { if (active) active.abort(new Error('Cancelled by user')); else terminal.close(); };
   terminal.rl.on('SIGINT', interrupt);
   process.on('SIGINT', interrupt);
   const ui: Interaction = {
+    get approvalMode() { return approvals.mode; },
     text: text => terminal.text(text), status: text => terminal.line(text),
     question: (question, signal) => terminal.question(question, signal),
-    approve: async (description, signal) => {
-      terminal.line(`\nApproval required\n${description}`);
-      return (await terminal.question('Allow this operation once? [y/N] ', signal)).trim().toLowerCase() === 'y';
-    },
-    approveRequest: async (description, signal) => {
-      terminal.line(`\nAccount access confirmation\n${description}`);
-      return (await terminal.question('Send this one request using this account? [y/N] ', signal)).trim().toLowerCase() === 'y';
-    },
+    approve: (description, signal) => approvals.confirm(description, signal),
+    approveRequest: (description, signal) => approvals.confirm(description, signal),
   };
   const load = (id: string) => {
     const session = store.get(id);
@@ -136,6 +139,7 @@ async function main(): Promise<void> {
     finally { active = undefined; }
   };
   try {
+    terminal.line(approvals.mode === 'yolo' ? 'YOLO enabled: no permission prompts. Selected-account requests may consume credits. /permissions ask enables confirmations.' : 'ASK mode: permission prompts enabled.');
     terminal.line(`Your workspace. Your accounts.\n${workspace}\n\n/connect   Link an account or start without login\n/models    Search models across a connected provider\n/help      Commands, memory and approvals`);
     try { vault = await systemVault(); } catch { terminal.line('OS credential vault unavailable. Connections will last for this process only.'); }
     for (const entry of providers) {
@@ -152,7 +156,7 @@ async function main(): Promise<void> {
     if (values.session) load(values.session);
     while (true) {
       const todos = current ? store.state<Todo[]>(current.id, 'todos', []) : [];
-      terminal.setContext({ workspace, route: routes[0]?.id ?? 'Choose a model /models', accounts: connections.size, session: current?.id ?? 'New task', mode: current && store.state(current.id, 'plan-mode', false) ? 'PLAN · read only' : 'EXECUTE', tasks: todos.length ? `${todos.filter(todo => todo.status === 'completed').length}/${todos.length} tasks` : 'No checklist', workers: current ? capabilities.jobs.list(store, current).filter(job => job.status === 'running').length + capabilities.terminals.list(store, current).filter(terminal => terminal.status === 'running').length : 0 });
+      terminal.setContext({ workspace, route: routes[0]?.id ?? 'Choose a model /models', accounts: connections.size, session: current?.id ?? 'New task', mode: (current && store.state(current.id, 'plan-mode', false) ? 'PLAN · ' : '') + approvals.mode.toUpperCase(), tasks: todos.length ? `${todos.filter(todo => todo.status === 'completed').length}/${todos.length} tasks` : 'No checklist', workers: current ? capabilities.jobs.list(store, current).filter(job => job.status === 'running').length + capabilities.terminals.list(store, current).filter(terminal => terminal.status === 'running').length : 0 });
       let input: string;
       try { input = (await terminal.question('\nYou > ')).trim(); } catch { break; }
       if (!input) continue;
@@ -242,7 +246,12 @@ async function main(): Promise<void> {
           continue;
         }
         if (command === '/providers') { terminal.line(`${providers.map(entry => `${entry.id}: ${connections.has(entry.id) ? 'connected' : 'not connected'} — ${entry.access}`).join('\n')}\nSelected route: ${routes[0]?.id ?? 'none'}`); continue; }
-        if (command === '/prompt') { const prompt = promptForProvider(routes[0]?.provider ?? ''); terminal.line(`System prompt ${prompt.hash}\n${prompt.text}`); continue; }
+        if (command === '/prompt') { const prompt = promptForProvider(routes[0]?.provider ?? ''); terminal.line(`System prompt ${prompt.hash}\n${prompt.text}\n\n${approvalInstructions(approvals.mode)}`); continue; }
+        if (command === '/permissions') {
+          if (!['yolo', 'ask'].includes(argument)) throw new Error('Use /permissions yolo or /permissions ask.');
+          approvals.mode = argument as 'yolo' | 'ask';
+          terminal.line(`${argument.toUpperCase()} mode enabled. ${argument === 'yolo' ? 'Permission prompts are disabled; selected-account requests may consume credits.' : 'Permission prompts are enabled.'}`); continue;
+        }
         if (command === '/pin' || command === '/pins' || command === '/unpin') {
           if (!current && command === '/pin' && argument) current = store.create(workspace, await workspaceIdentity(workspace), 'Task with pinned constraints');
           const session = required(); const pins = store.state<string[]>(session.id, 'pins', []);
@@ -272,7 +281,7 @@ async function main(): Promise<void> {
           try {
             if (command === '/workflow') {
               const workflow = await readWorkflow(path.resolve(argument));
-              if (!await ui.approve(`Run workflow ${workflow.name}? Each model request and tool keeps its usual approval.\n${workflow.steps.map((step, index) => `${index + 1}. ${step}`).join('\n')}`, active.signal)) continue;
+              if (!await ui.approve(`Run workflow ${workflow.name}? Each model request and tool follows the selected permission mode.\n${workflow.steps.map((step, index) => `${index + 1}. ${step}`).join('\n')}`, active.signal)) continue;
               if (!current) current = store.create(workspace, await workspaceIdentity(workspace), secrets.redact(workflow.name));
               store.event(current.id, 'workflow', JSON.parse(secrets.redact(JSON.stringify(workflow))));
             }
@@ -310,7 +319,7 @@ async function main(): Promise<void> {
           try {
             if (await ui.approve(`Load ${path.resolve(argument)}?\nLocal plugin/server code runs with your OS privileges. Remote MCP sends approved arguments to its configured service. Only load a file you trust.`, active.signal)) {
               const name = command === '/plugin' ? await loadPlugin(path.resolve(argument), capabilities) : await loadMcp(path.resolve(argument), capabilities, active.signal);
-              terminal.line(`Loaded ${name}. Its model tool calls require approval; plan mode blocks extension tools.`);
+              terminal.line(`Loaded ${name}. Its tools follow the selected permission mode; plan mode blocks extension tools.`);
             }
           } finally { active = undefined; }
           continue;
@@ -358,14 +367,14 @@ async function main(): Promise<void> {
           if (operations.length !== 1 || !note.length) throw new Error('Use /resolve UNIQUE_OPERATION_ID OUTCOME_YOU_VERIFIED. Inspect /pending first.');
           const op = operations[0]!;
           terminal.line(`${op.name}: ${op.args}\nYour verified outcome: ${note.join(' ')}`);
-          if ((await terminal.question('Record this outcome without rerunning the tool? [y/N] ')).toLowerCase() === 'y') store.finish(op.id, 'completed', secrets.redact(`User-reconciled outcome (not an automatically observed result): ${note.join(' ')}`));
+          if (await approvals.confirm('Record your supplied outcome without rerunning the tool?', new AbortController().signal)) store.finish(op.id, 'completed', secrets.redact(`User-reconciled outcome (not an automatically observed result): ${note.join(' ')}`));
           continue;
         }
         if (command === '/reconcile') {
           const session = required();
           const identity = await workspaceIdentity(workspace);
           terminal.line(`Saved workspace state: ${session.identity}\nCurrent workspace state: ${identity}\nInspect external edits and checkout changes before proceeding.`);
-          if ((await terminal.question('Have you reviewed and accepted this workspace state? [y/N] ')).toLowerCase() === 'y') current = store.reconcileWorkspace(session.id, identity);
+          if (await approvals.confirm('Accept this workspace state after your inspection?', new AbortController().signal)) current = store.reconcileWorkspace(session.id, identity);
           continue;
         }
         if (command === '/status') {
@@ -378,7 +387,7 @@ async function main(): Promise<void> {
           const session = required();
           const payload = { format: 'robinhood-session-v1', session, messages: store.messages(session.id), operations: store.operations(session.id), events: store.events(session.id) };
           terminal.line(`Export ${payload.messages.length} messages and ${payload.operations.length} tool records to ${path.resolve(argument)}. This includes project content. Inspect /memory first if needed.`);
-          if ((await terminal.question('Write this export? [y/N] ')).toLowerCase() === 'y') {
+          if (await approvals.confirm('Write this requested export?', new AbortController().signal)) {
             await writeFile(path.resolve(argument), secrets.redact(JSON.stringify(payload, null, 2)) + '\n', { flag: 'wx', mode: 0o600 });
             terminal.line('Export saved. Existing files were not overwritten.');
           }
@@ -386,7 +395,7 @@ async function main(): Promise<void> {
         }
         if (command === '/delete') {
           const session = required();
-          if ((await terminal.question('Delete this saved session? Workspace files and prior exports remain. [y/N] ')).toLowerCase() === 'y') { store.delete(session.id); current = undefined; terminal.line('Session deleted from the application database; this is not forensic disk erasure.'); }
+          if (await approvals.confirm('Delete this requested saved session? Workspace files and prior exports remain.', new AbortController().signal)) { store.delete(session.id); current = undefined; terminal.line('Session deleted from the application database; this is not forensic disk erasure.'); }
           continue;
         }
         if (command.startsWith('/') && command !== '/continue') throw new Error('Unknown command. Use /help.');

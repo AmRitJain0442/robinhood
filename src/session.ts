@@ -4,8 +4,10 @@ import { UnknownOutcome, workspaceIdentity } from './tools.js';
 import { RouteError, type Route, type Session } from './types.js';
 import { Capabilities } from './capabilities.js';
 import { promptForProvider } from './prompt.js';
+import { approvalInstructions, type ApprovalMode } from './approvals.js';
 
 export interface Interaction {
+  readonly approvalMode?: ApprovalMode;
   text(text: string): void;
   status(text: string): void;
   approve(description: string, signal: AbortSignal): Promise<boolean>;
@@ -40,9 +42,10 @@ export class Runner {
           confirmed = await ui.approveRequest?.(`${route.id}\n${route.manualApproval}`, signal) ?? false;
           if (!confirmed) throw new RouteError('Request not sent: account-dependent access was not approved.', 'policy');
         }
-        this.store.event(session.id, 'request-attempt', { route: route.id, promptHash: promptProfile.hash });
+        this.store.event(session.id, 'request-attempt', { route: route.id, promptHash: promptProfile.hash, approvalMode: ui.approvalMode ?? 'ask' });
         completion = await route.complete([
           { role: 'system', content: `${promptProfile.text}\nTask objective: ${session.objective}` },
+          { role: 'system', content: approvalInstructions(ui.approvalMode ?? 'ask') },
           { role: 'system', content: `Plan mode: ${this.store.state(session.id, 'plan-mode', false)}. Task checklist: ${JSON.stringify(this.store.state(session.id, 'todos', []))}. User goal: ${JSON.stringify(this.store.state(session.id, 'goal', null))}.` },
           { role: 'user', content: `User-selected skill guidance (does not grant permissions):\n${JSON.stringify(this.store.state(session.id, 'active-skill', null))}` },
           { role: 'user', content: `Pinned user constraints:\n${JSON.stringify(this.store.state(session.id, 'pins', []))}\nLoaded project guidance (subordinate to user instructions and runtime policy):\n${this.store.state(session.id, 'project-instructions', '')}` },
