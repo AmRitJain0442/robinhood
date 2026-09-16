@@ -1,3 +1,4 @@
+import { nvidia } from './specs/nvidia.js';
 import { cline } from './specs/cline.js';
 import { vercel } from './specs/vercel.js';
 import { huggingface } from './specs/huggingface.js';
@@ -23,6 +24,7 @@ export interface ProviderDefinition {
   create(key: string): Connector;
 }
 export const providers: ProviderDefinition[] = [
+  { id: 'nvidia', name: 'NVIDIA API Catalog', env: 'NVIDIA_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(nvidia, key) },
   { id: 'huggingface', name: 'Hugging Face', env: 'HF_TOKEN', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(huggingface, key) },
   { id: 'vercel', name: 'Vercel AI Gateway', env: 'AI_GATEWAY_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(vercel, key) },
   { id: 'cline', name: 'Cline API', env: 'CLINE_API_KEY', access: 'Account-dependent; each request needs confirmation', create: key => new Compatible(cline, key) },
