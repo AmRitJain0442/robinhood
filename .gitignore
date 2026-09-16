@@ -22,6 +22,8 @@ node_modules/
 dist/
 coverage/
 *.tsbuildinfo
+__pycache__/
+*.pyc
 
 # Editor and OS files
 .idea/

@@ -1,0 +1,12 @@
+**
+!package.json
+!package-lock.json
+!tsconfig.json
+!src/
+!src/**
+!prompts/
+!prompts/system.md
+!prompts/compact.md
+!benchmarks/
+!benchmarks/swebench/
+!benchmarks/swebench/Dockerfile
