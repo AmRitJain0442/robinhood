@@ -22,6 +22,7 @@ import { compactSession } from './context.js';
 import { systemPrompt, systemPromptHash } from './prompt.js';
 import { Jobs } from './jobs.js';
 import { listSkills, loadSkill, loadPlugin, loadMcp } from './extensions.js';
+import { delegateTask } from './delegation.js';
 
 const help = `Robinhood 0.0.1 / developer preview
 
@@ -57,6 +58,8 @@ In the terminal:
   /plugin FILE           Load an explicitly trusted local JavaScript plugin
   /mcp CONFIG.json       Connect an explicitly trusted MCP server
   /extensions            List loaded extensions; /unload NAME disconnects one
+  /delegate TASK          Run a read-only research agent and bring back its report
+  /search TEXT            Search saved session objectives and conversation text
   /pending                Inspect operations needing reconciliation
   /resolve ID NOTE        Record the outcome you verified for an uncertain operation
   /reconcile              Accept a changed checkout after inspecting the workspace
@@ -228,6 +231,19 @@ async function main(): Promise<void> {
         }
         if (command === '/providers') { terminal.line(`${providers.map(entry => `${entry.id}: ${connections.has(entry.id) ? 'connected' : 'not connected'} — ${entry.access}`).join('\n')}\nSelected route: ${routes[0]?.id ?? 'none'}`); continue; }
         if (command === '/prompt') { terminal.line(`System prompt ${systemPromptHash}\n${systemPrompt}`); continue; }
+        if (command === '/search') {
+          if (!argument) throw new Error('Supply search text.');
+          const query = argument.toLowerCase();
+          const matches = store.list().filter(session => session.workspace === workspace && (session.objective.toLowerCase().includes(query) || store.messages(session.id).some(message => message.content?.toLowerCase().includes(query))));
+          terminal.line(matches.slice(0, 50).map(session => `${session.id}  ${session.objective}`).join('\n') || 'No matching sessions.'); continue;
+        }
+        if (command === '/delegate') {
+          if (!routes[0]) throw new Error('Select a model before delegating.');
+          active = new AbortController();
+          try { await delegateTask(store, required(), argument, routes[0], ui, secrets, capabilities, active.signal); }
+          finally { active = undefined; }
+          continue;
+        }
         if (command === '/skills') { terminal.line((await listSkills(workspace)).join('\n') || 'No skills in .agents/skills/*/SKILL.md.'); continue; }
         if (command === '/skill') {
           const content = secrets.redact(await loadSkill(workspace, argument));

@@ -47,7 +47,7 @@ export class Compatible implements Connector {
         manualConsent(consent);
         const selected = (await this.models(AbortSignal.any([signal, AbortSignal.timeout(15_000)]))).find(item => item.id === model);
         if (!selected) throw new RouteError(`Choose a supported model from /models ${this.spec.id}.`, 'policy');
-        const body = { ...this.spec.extraBody, model, messages: chatMessages(messages, this.spec.id, model), tools: options?.tools ?? toolDefinitions, ...(this.spec.omitToolChoice ? {} : { tool_choice: 'auto' }), stream: !this.spec.nonStreaming, [this.spec.maxTokenField ?? 'max_tokens']: 2048 };
+        const body = { ...this.spec.extraBody, model, messages: chatMessages(messages, this.spec.id, model), tools: options?.tools?.length === 0 ? undefined : options?.tools ?? toolDefinitions, ...(this.spec.omitToolChoice ? {} : { tool_choice: options?.tools?.length === 0 ? undefined : 'auto' }), stream: !this.spec.nonStreaming, [this.spec.maxTokenField ?? 'max_tokens']: 2048 };
         contextBudget(body, selected.context);
         const response = await fetch(`${this.baseURL}${this.spec.completionPath ?? '/chat/completions'}`, { method: 'POST', headers: this.headers(), body: JSON.stringify(body), signal: AbortSignal.any([signal, AbortSignal.timeout(120_000)]), redirect: 'error' });
         return this.spec.nonStreaming ? jsonCompletion(await boundedJSON(response), onText) : parseCompletion(response, onText, { provider: this.spec.id, model });

@@ -47,8 +47,8 @@ export function structuredSchema(tools: ToolDefinition[] = toolDefinitions) { re
   type: 'object', additionalProperties: false, required: ['content', 'tool_calls'],
   properties: {
     content: { type: 'string' },
-    tool_calls: { type: 'array', maxItems: 8, items: { type: 'object', additionalProperties: false, required: ['name', 'arguments'], properties: {
-      name: { type: 'string', enum: tools.map(tool => tool.function.name) }, arguments: { type: 'string', description: 'A JSON-encoded object matching the requested Robinhood tool parameters.' },
+    tool_calls: { type: 'array', maxItems: tools.length ? 8 : 0, items: { type: 'object', additionalProperties: false, required: ['name', 'arguments'], properties: {
+      name: { type: 'string', enum: tools.length ? tools.map(tool => tool.function.name) : undefined }, arguments: { type: 'string', description: 'A JSON-encoded object matching the requested Robinhood tool parameters.' },
     } } },
   },
 }; }
