@@ -8,6 +8,14 @@ import { hash, MAX_FILE_BYTES, prepareTool } from '../src/tools.js';
 const fixture = async () => realpath(await mkdtemp(path.join(tmpdir(), 'robinhood tools test ')));
 const signal = () => new AbortController().signal;
 
+test('native CLI credential profiles are excluded from file tools', async () => {
+  const root = await fixture();
+  for (const filename of ['.gemini/oauth_creds.json', '.copilot/config.json', 'cli-profiles/gemini/settings.json']) {
+    await assert.rejects(prepareTool(root, 'read_file', JSON.stringify({ path: filename })), /excluded/);
+    await assert.rejects(prepareTool(root, 'write_file', JSON.stringify({ path: filename, content: 'x', expectedHash: null })), /excluded/);
+  }
+});
+
 test('file replacement detects an external edit made after approval preparation', async () => {
   const root = await fixture();
   const filename = path.join(root, 'sample.txt');

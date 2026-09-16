@@ -6,7 +6,7 @@ import path from 'node:path';
 export const MAX_FILE_BYTES = 64 * 1024;
 const MAX_OUTPUT_BYTES = 32 * 1024;
 const secretNames = /^(?:\.env(?:\..*)?|auth\.json|credentials\.json|id_rsa|id_ed25519)$/i;
-const excludedDirs = new Set(['.git', '.robinhood', 'node_modules']);
+const excludedDirs = new Set(['.git', '.robinhood', 'node_modules', '.gemini', '.copilot', 'cli-profiles']);
 
 export const toolDefinitions = [
   { type: 'function', function: { name: 'list_files', description: 'List one workspace directory, at most 200 entries.', parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'], additionalProperties: false } } },
