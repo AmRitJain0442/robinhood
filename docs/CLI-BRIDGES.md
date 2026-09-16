@@ -29,6 +29,18 @@ Headless requests use stdin for task content, a dedicated empty workspace, no AP
 
 Validation uses the actual Gemini executable against a local API fixture, verifies no native tool declarations are exposed, and completes one Robinhood-approved file write with receipt handoff. Real Google-authenticated inference remains unverified because no account has been signed into this dedicated profile. Tests use a synthetic key and loopback endpoint only; that fixture mechanism is not exposed in the terminal UI.
 
+### GitHub Copilot CLI (implemented)
+
+Run `robinhood login copilot-cli` to authorize GitHub through the native CLI. Then run `robinhood`, `/connect copilot-cli`, and `/models copilot-cli`. The pinned CLI is 1.0.85. A dedicated `cli-profiles/copilot` profile and cache keep its configuration separate from your existing Copilot installation. Tokens remain managed by Copilot; its documented credential-store fallback may use a local plaintext file when a system vault is unavailable. Robinhood does not import `GH_TOKEN`, `GITHUB_TOKEN`, API keys, or BYOK configuration.
+
+GitHub documents CLI access across Copilot plans, but allowance and model access remain account-dependent. A request may consume paid credits, so Robinhood requires confirmation each time. The picker contains reviewed model IDs; it is not proof your account can access every listed model. There is no balance discovery or automatic paid fallback implemented by Robinhood.
+
+Native tools are removed with an explicit nonmatching allowlist (an empty allowlist enables defaults in this version). Additional deny rules, disabled built-in MCP servers, a dedicated empty workspace, no custom instructions, and disabled remote export retain the intended model-only boundary. Prompts use stdin; structured model text is extracted from JSONL assistant events only after a successful completion record. Plain terminal text is not parsed because the CLI formats it and can alter JSON. Replies are shown after completion. Native profiles may retain task copies; these are separate from Robinhood's journal. `/disconnect` removes the connection marker, not the provider's remote authorization.
+
+The real Copilot executable passed a loopback model fixture: no native tool definitions in requests, a single approved Robinhood file write, and receipt handoff. Parser tests reject missing completion, errors and unexpected native tool activity. GitHub-authenticated inference remains unverified until you authorize this profile. Copilot can retry or make utility requests within Robinhood's two-minute deadline.
+
+References: [Copilot availability](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/about-copilot-cli), [native authentication and CLI flags](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference), [configuration and credential storage](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference).
+
 - A CLI is not an additional token allowance unless its provider grants one.
 - The CLI owns its supported login and token refresh. Robinhood does not extract browser cookies or reuse a private OAuth client.
 - Advertised free routes, account-dependent allowances, and subscriptions must remain distinct.

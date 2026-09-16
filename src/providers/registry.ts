@@ -2,6 +2,7 @@ import { ai21 } from './specs/ai21.js';
 import { OpenCodeBridge } from '../bridges/opencode.js';
 import { KiloBridge } from '../bridges/kilo.js';
 import { GeminiCliBridge } from '../bridges/gemini-cli.js';
+import { CopilotBridge } from '../bridges/copilot.js';
 import { Horde } from './horde.js';
 import { Puter } from './puter.js';
 import { cohere } from './specs/cohere.js';
@@ -40,6 +41,7 @@ export interface ProviderDefinition {
   create(key: string, configuration?: string): Connector;
 }
 export const providers: ProviderDefinition[] = [
+  { id: 'copilot-cli', name: 'GitHub Copilot CLI', env: 'ROBINHOOD_COPILOT_CLI', bridge: { label: 'Use Copilot CLI GitHub profile', login: 'First run: robinhood login copilot-cli' }, access: 'Native GitHub login; account-dependent allowance and possible paid credits; confirmation each request', create: () => new CopilotBridge() },
   { id: 'gemini-cli', name: 'Gemini CLI (Google login)', env: 'ROBINHOOD_GEMINI_CLI', bridge: { label: 'Use Gemini CLI Google profile', login: 'First run: robinhood login gemini-cli' }, access: 'Native Google login; account-dependent free allowance; confirmation each request', create: () => new GeminiCliBridge() },
   { id: 'opencode', name: 'OpenCode CLI bridge', env: 'ROBINHOOD_OPENCODE', anonymous: true, bridge: { label: 'Launch OpenCode free-model bridge' }, access: 'Isolated local OpenCode engine; advertised free models; public-data confirmation; internal retries possible', create: () => new OpenCodeBridge() },
   { id: 'kilo-cli', name: 'Kilo CLI bridge', env: 'ROBINHOOD_KILO_CLI', anonymous: true, bridge: { label: 'Launch Kilo free-model bridge' }, access: 'Isolated Kilo engine; explicit zero-priced free models; public-data confirmation; internal retries possible', create: () => new KiloBridge() },

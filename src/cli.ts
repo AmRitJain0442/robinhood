@@ -6,6 +6,7 @@ import { browserLogin, openBrowser, openRouterFlow, puterFlow } from './auth/bro
 import { parseArgs } from 'node:util';
 import { dataPath } from './paths.js';
 import { loginGemini } from './bridges/gemini-cli.js';
+import { loginCopilot } from './bridges/copilot.js';
 import { realpath, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { OpenRouter } from './providers/openrouter.js';
@@ -23,6 +24,7 @@ const help = `Robinhood 0.0.1 / developer preview
   robinhood --workspace <directory>    Open a specific project
   robinhood demo                      Offline handoff demonstration
   robinhood login gemini-cli           Sign in with Google in the native CLI
+  robinhood login copilot-cli          Sign in with GitHub in the native CLI
 
 Options: --workspace PATH, --data-dir PATH, --session ID, --help, --version
 
@@ -54,8 +56,9 @@ Ctrl+C cancels an active turn; Ctrl+C at the prompt exits. No telemetry.`;
 
 async function main(): Promise<void> {
   if (process.argv[2] === 'login') {
-    if (process.argv[3] !== 'gemini-cli' || process.argv.length !== 4) throw new Error('Use: robinhood login gemini-cli');
-    await loginGemini(); return;
+    if (process.argv.length !== 4 || !['gemini-cli', 'copilot-cli'].includes(process.argv[3]!)) throw new Error('Use: robinhood login gemini-cli OR robinhood login copilot-cli');
+    if (process.argv[3] === 'gemini-cli') await loginGemini(); else await loginCopilot();
+    return;
   }
   if (process.argv[2] === 'demo') { await demo(text => console.log(terminalText(text))); return; }
   const { values } = parseArgs({ options: { workspace: { type: 'string' }, 'data-dir': { type: 'string' }, session: { type: 'string' }, help: { type: 'boolean' }, version: { type: 'boolean' } } });

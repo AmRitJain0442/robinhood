@@ -1,5 +1,6 @@
 // Official setup guides. Adding an API connector does not imply portable browser OAuth.
 export const setupGuides: Record<string, string> = {
+  'copilot-cli': 'https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli',
   'gemini-cli': 'https://geminicli.com/docs/get-started/authentication/',
   'kilo-cli': 'https://kilo.ai/docs/code-with-ai/platforms/cli',
   opencode: 'https://opencode.ai/docs/cli/',
@@ -31,6 +32,6 @@ export const setupGuides: Record<string, string> = {
 };
 
 export function accountPriority(id: string): number {
-  const index = ['openrouter', 'opencode', 'kilo', 'puter', 'gemini', 'horde'].indexOf(id);
+  const index = ['openrouter', 'opencode', 'gemini-cli', 'kilo-cli', 'copilot-cli', 'kilo', 'puter', 'gemini', 'horde'].indexOf(id);
   return index === -1 ? 100 : index;
 }
