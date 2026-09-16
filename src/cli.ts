@@ -127,7 +127,7 @@ async function main(): Promise<void> {
         if (command === '/quit' || command === '/exit') break;
         if (command === '/help') { terminal.line(help); continue; }
         if (command === '/connect' || command === '/accounts') {
-          const id = argument || await terminal.select('Link an account - type to search', [...providers].sort((a, b) => accountPriority(a.id) - accountPriority(b.id)).map(entry => ({ value: entry.id, label: entry.name, detail: `${connections.has(entry.id) ? 'connected / ' : ''}${['openrouter', 'puter'].includes(entry.id) ? 'browser sign-in' : entry.anonymous ? 'no login available' : 'one-time API credential'}` })));
+          const id = argument || await terminal.select('Link an account - type to search', [...providers].sort((a, b) => accountPriority(a.id) - accountPriority(b.id)).map(entry => ({ value: entry.id, label: entry.name, detail: `${connections.has(entry.id) ? 'connected / ' : ''}${entry.bridge ? (entry.bridge.login ? 'native account login' : 'CLI free-model bridge') : ['openrouter', 'puter'].includes(entry.id) ? 'browser sign-in' : entry.anonymous ? 'anonymous access available' : 'one-time API credential'}` })));
           const entry = providerDefinition(id);
           const flow = id === 'openrouter' ? openRouterFlow : id === 'puter' ? puterFlow : undefined;
           const method = await terminal.select(`Connect ${entry.name}`, [
@@ -164,9 +164,10 @@ async function main(): Promise<void> {
           selectedProvider = entry.id;
           routes = [];
           if (vault) {
-            try { await vault.save(entry.id, { key, configuration, method }); terminal.line('Account linked and saved in the OS credential vault.'); }
+            try { await vault.save(entry.id, { key, configuration, method }); terminal.line(entry.bridge ? 'CLI connection saved. The native CLI manages any account authorization.' : 'Account linked and saved in the OS credential vault.'); }
             catch { terminal.line('Connected for this process only: the OS vault could not save this credential. Any older saved credential remains unchanged.'); }
           } else terminal.line('Connected for this process only: no OS credential vault is available.');
+          if (entry.bridge?.login) terminal.line(entry.bridge.login);
           terminal.line('Use /models to choose a model. Access and remaining allowance are checked by the provider; linking does not create credits.');
           continue;
         }
