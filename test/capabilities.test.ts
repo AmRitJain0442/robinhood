@@ -10,6 +10,20 @@ import { workspaceIdentity } from '../src/tools.js';
 import { systemPrompt, systemPromptHash } from '../src/prompt.js';
 import type { Route } from '../src/types.js';
 
+test('the text-only Horde route retains room for a prompt within its 8K budget', async () => {
+  const root = await realpath(await mkdtemp(path.join(tmpdir(), 'robinhood-small-context-')));
+  const store = new Store(path.join(root, 'state.db'));
+  try {
+    const session = store.create(root, await workspaceIdentity(root), 'Explain this function');
+    const route: Route = { id: 'horde/fixture', provider: 'horde', model: 'fixture', complete: async messages => {
+      assert.ok(Buffer.byteLength(JSON.stringify(messages)) + 512 < 8192);
+      assert.match(messages[0]!.content!, /text-only/);
+      return { message: { role: 'assistant', content: 'Explanation.' } };
+    } };
+    await new Runner(store).turn(session, 'Explain x => x + 1', [route], { text() {}, status() {}, approve: async () => false }, AbortSignal.timeout(3000));
+  } finally { store.close(); }
+});
+
 test('plan mode blocks hallucinated write tools and sends the user-derived prompt', async () => {
   const root = await realpath(await mkdtemp(path.join(tmpdir(), 'robinhood-plan-')));
   const store = new Store(path.join(root, 'state.db'));

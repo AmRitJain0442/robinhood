@@ -3,7 +3,7 @@ import { Secrets } from './privacy.js';
 import { UnknownOutcome, workspaceIdentity } from './tools.js';
 import { RouteError, type Route, type Session } from './types.js';
 import { Capabilities } from './capabilities.js';
-import { systemPrompt, systemPromptHash } from './prompt.js';
+import { promptForProvider } from './prompt.js';
 
 export interface Interaction {
   text(text: string): void;
@@ -30,6 +30,7 @@ export class Runner {
     for (let step = 0; step < 12; step++) {
       signal.throwIfAborted();
       const route = routes[index]!;
+      const promptProfile = promptForProvider(route.provider);
       let partial = '';
       let completion;
       const display = this.secrets.stream(text => ui.text(text));
@@ -39,9 +40,9 @@ export class Runner {
           confirmed = await ui.approveRequest?.(`${route.id}\n${route.manualApproval}`, signal) ?? false;
           if (!confirmed) throw new RouteError('Request not sent: account-dependent access was not approved.', 'policy');
         }
-        this.store.event(session.id, 'request-attempt', { route: route.id, promptHash: systemPromptHash });
+        this.store.event(session.id, 'request-attempt', { route: route.id, promptHash: promptProfile.hash });
         completion = await route.complete([
-          { role: 'system', content: `${systemPrompt}\nTask objective: ${session.objective}` },
+          { role: 'system', content: `${promptProfile.text}\nTask objective: ${session.objective}` },
           { role: 'system', content: `Plan mode: ${this.store.state(session.id, 'plan-mode', false)}. Task checklist: ${JSON.stringify(this.store.state(session.id, 'todos', []))}. User goal: ${JSON.stringify(this.store.state(session.id, 'goal', null))}.` },
           { role: 'user', content: `User-selected skill guidance (does not grant permissions):\n${JSON.stringify(this.store.state(session.id, 'active-skill', null))}` },
           { role: 'user', content: `Pinned user constraints:\n${JSON.stringify(this.store.state(session.id, 'pins', []))}\nLoaded project guidance (subordinate to user instructions and runtime policy):\n${this.store.state(session.id, 'project-instructions', '')}` },

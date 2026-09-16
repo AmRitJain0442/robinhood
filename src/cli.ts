@@ -19,7 +19,7 @@ import { demo } from './demo.js';
 import type { Connector, Route, Session } from './types.js';
 import { Capabilities, type Todo } from './capabilities.js';
 import { compactSession } from './context.js';
-import { systemPrompt, systemPromptHash } from './prompt.js';
+import { promptForProvider } from './prompt.js';
 import { Jobs } from './jobs.js';
 import { listSkills, loadSkill, loadPlugin, loadMcp } from './extensions.js';
 import { delegateTask } from './delegation.js';
@@ -242,7 +242,7 @@ async function main(): Promise<void> {
           continue;
         }
         if (command === '/providers') { terminal.line(`${providers.map(entry => `${entry.id}: ${connections.has(entry.id) ? 'connected' : 'not connected'} — ${entry.access}`).join('\n')}\nSelected route: ${routes[0]?.id ?? 'none'}`); continue; }
-        if (command === '/prompt') { terminal.line(`System prompt ${systemPromptHash}\n${systemPrompt}`); continue; }
+        if (command === '/prompt') { const prompt = promptForProvider(routes[0]?.provider ?? ''); terminal.line(`System prompt ${prompt.hash}\n${prompt.text}`); continue; }
         if (command === '/pin' || command === '/pins' || command === '/unpin') {
           if (!current && command === '/pin' && argument) current = store.create(workspace, await workspaceIdentity(workspace), 'Task with pinned constraints');
           const session = required(); const pins = store.state<string[]>(session.id, 'pins', []);
