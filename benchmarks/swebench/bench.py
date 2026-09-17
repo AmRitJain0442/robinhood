@@ -83,12 +83,24 @@ def load_profile(name):
 
 
 def doctor():
+    try:
+        return check_readiness()
+    except Exception as error:
+        save(STATE / 'readiness.json', dict(ready=False, checked_at=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+             benchmark_started=(STATE / 'runs').exists(), error=str(error), model_requests_during_setup=0))
+        raise RuntimeError('Readiness check failed. Check Docker Desktop is running with Ubuntu WSL integration enabled; inspect .robinhood/swebench/readiness.json for details.') from error
+
+
+def check_readiness():
     import importlib.metadata
     engine = client()
     info = engine.info()
     runtime = engine.images.get(RUNTIME)
     profiles = {name: len(load_profile(name)['instance_ids']) for name in ['pilot', 'full'] if (STATE / f'{name}.json').exists()}
-    status = dict(prepared=True, benchmark_started=(STATE / 'runs').exists(), docker_os=info['OSType'],
+    if profiles != {'pilot': 10, 'full': 300}:
+        raise RuntimeError('Pilot/full manifests are missing or invalid; run preparation first.')
+    status = dict(prepared=True, ready=True, checked_at=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+                  benchmark_started=(STATE / 'runs').exists(), docker_os=info['OSType'],
                   docker_memory_gib=round(info['MemTotal'] / 2**30, 1),
                   host_free_gib=round(shutil.disk_usage(ROOT).free / 2**30, 1),
                   swebench=importlib.metadata.version('swebench'), runtime_image=runtime.id,
@@ -97,8 +109,7 @@ def doctor():
         raise RuntimeError('Linux Docker containers are required.')
     if status['swebench'] != '3.0.17':
         raise RuntimeError('Wrong harness version; use setup.sh.')
-    if not (STATE / 'runs').exists():
-        save(STATE / 'readiness.json', status)
+    save(STATE / 'readiness.json', status)
     print(json.dumps(status, indent=2))
 
 
@@ -240,4 +251,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except (RuntimeError, FileNotFoundError) as error:
+        print(str(error), file=sys.stderr)
+        sys.exit(1)

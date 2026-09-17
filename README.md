@@ -140,6 +140,7 @@ The optional [OpenCode feasibility experiment](experiments/opencode/README.md) h
 | [Architecture](docs/ARCHITECTURE.md) | Runtime, persistence, routing, and tool boundaries |
 | [Provider roadmap](docs/PROVIDERS.md) | Integration order and allowance semantics |
 | [Contributing](CONTRIBUTING.md) | Development workflow and provider evidence requirements |
+| [SWE-bench Lite setup](benchmarks/swebench/README.md) | Prepared 10-task pilot and 300-task run; inference and grading require an explicit start |
 
 ## License
 
