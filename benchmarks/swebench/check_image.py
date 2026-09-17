@@ -8,7 +8,7 @@ engine = bench.client()
 images = json.loads((bench.STATE / 'images.json').read_text())
 tasks = {row['instance_id']: row for row in json.loads((bench.STATE / 'tasks.json').read_text())}
 base = engine.images.get(images[task_id])  # Pull explicitly before this check.
-image = bench.build_task_image(engine, profile, base, 'setup-compatibility')
+image = bench.build_task_image(engine, profile, base, 'setup-compatibility', tasks[task_id]['base_commit'])
 try:
     script = '''set -eu
 node --version

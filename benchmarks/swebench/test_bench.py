@@ -69,11 +69,14 @@ class BenchmarkContract(unittest.TestCase):
         engine.images.build.return_value = (Mock(), [])
         base = Mock()
         base.attrs = {'RepoDigests': ['swebench/fixture@sha256:abc']}
-        bench.build_task_image(engine, {'runtime_reference': 'robinhood-runtime:pinned'}, base, 'fixture')
+        bench.build_task_image(engine, {'runtime_reference': 'robinhood-runtime:pinned'}, base, 'fixture', 'a' * 40)
         dockerfile = engine.images.build.call_args.kwargs['fileobj'].getvalue().decode()
         self.assertIn('FROM swebench/fixture@sha256:abc', dockerfile)
         self.assertNotIn('evaluation-data', dockerfile)
         self.assertNotIn('COPY . ', dockerfile)
+        self.assertIn('git checkout --detach ' + 'a' * 40, dockerfile)
+        with self.assertRaises(ValueError):
+            bench.build_task_image(engine, {'runtime_reference': 'robinhood-runtime:pinned'}, base, 'fixture', '; invalid')
 
 
 if __name__ == '__main__':

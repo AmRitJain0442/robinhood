@@ -59,7 +59,7 @@ The manifests pin the built runtime image ID. Rebuild and prepare again after ch
 
 ## Artifacts and isolation
 
-Each task uses the official SWE-bench instance image, checked against its expected Git base commit, with Robinhood's runtime copied in. No host project, home directory, credential vault, evaluator dataset, or Docker socket is mounted into the task container. Only an allowlisted task input is copied in: issue description, repository identity, base commit, and execution settings. Gold patches, grading patches, hints, and grading test lists are excluded.
+Each task uses the official SWE-bench instance image with Robinhood's runtime copied in. Preparation checks out the dataset's exact base commit inside the disposable image, since published images may contain an additional packaging commit. The worker then verifies that commit and a clean checkout. No host project, home directory, credential vault, evaluator dataset, or Docker socket is mounted into the task container. Only an allowlisted task input is copied in: issue description, repository identity, base commit, and execution settings. Gold patches, grading patches, hints, and grading test lists are excluded.
 
 The agent uses Robinhood's existing tools and memory with YOLO enabled. `web_fetch` and `ask_user` are removed for this unattended protocol. Outbound network access remains available for inference, and shell networking is not technically blocked; the prompt forbids looking up published solutions. This is a network-enabled run, not a claim of enforced offline evaluation.
 

@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -141,7 +142,9 @@ def copy_outputs(container, directory):
     archive_file.unlink()
 
 
-def build_task_image(engine, profile, base, label):
+def build_task_image(engine, profile, base, label, base_commit):
+    if not re.fullmatch(r'[a-f0-9]{40}', base_commit):
+        raise ValueError('Expected a pinned Git base commit.')
     dockerfile = f'''FROM {profile['runtime_reference']} AS runtime
 FROM {base.attrs['RepoDigests'][0]}
 COPY --from=runtime /usr/local /usr/local
@@ -149,6 +152,7 @@ COPY --from=runtime /opt/robinhood /opt/robinhood
 ENV PATH=/opt/miniconda3/envs/testbed/bin:/opt/miniconda3/bin:/usr/local/bin:/usr/bin:/bin
 ENV ROBINHOOD_BENCHMARK=swebench-lite
 WORKDIR /testbed
+RUN git checkout --detach {base_commit} && git reset --hard {base_commit}
 CMD ["node", "/opt/robinhood/dist/src/benchmark-worker.js"]
 '''
     image, _ = engine.images.build(fileobj=io.BytesIO(dockerfile.encode()), rm=True, labels={'robinhood.benchmark': label})
@@ -179,7 +183,7 @@ def run(profile_name):
         try:
             base = engine.images.pull(images[instance_id], platform='linux/amd64')
             # Copy only the runtime into the official prepared task environment.
-            image = build_task_image(engine, profile, base, run_id)
+            image = build_task_image(engine, profile, base, run_id, tasks[instance_id]['base_commit'])
             save(directory / 'images.json', dict(base=base.id, repo_digests=base.attrs.get('RepoDigests'), runtime=profile['runtime_image'], task=image.id))
             task = dict(tasks[instance_id], timeout_seconds=profile['timeout_seconds'], providers=profile['providers'])
             # Anonymous free providers by default; do not inherit host secrets.
