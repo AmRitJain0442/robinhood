@@ -143,7 +143,7 @@ export class Store {
         seen.add(call.id);
       }
       this.append(id, message);
-      if (usage) this.event(id, 'usage', usage);
+      if (usage) this.event(id, 'usage', { ...usage, ...message.source });
       const operations = (message.tool_calls ?? []).map(call => ({
         id: randomUUID(), session_id: id, call_id: call.id, name: call.function.name,
         args: call.function.arguments, state: 'prepared' as const, result: null,
