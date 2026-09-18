@@ -44,6 +44,8 @@ robinhood
 
 Robinhood uses your current directory as the workspace. You can also run `robinhood --workspace /path/to/project`, `robinhood --help`, or `robinhood demo`. The local installation points to this checkout; run `npm run build` here after pulling updates. Remove the command with `npm uninstall -g @amritjain0442/robinhood`.
 
+**Prefer a GUI?** Run `robinhood gui`, or `/gui` inside an existing terminal to share the same live task. The local browser interface includes account management, cumulative reported-token tracking, provider/model usage, task history, themes, and agent controls. `/usage` exposes the same ledger in the terminal. [Interfaces and tracking details](docs/INTERFACES.md).
+
 **YOLO is the default.** Tools, selected-account model requests, and explicit terminal commands run without permission prompts. `robinhood --ask` or `/permissions ask` restores confirmations; `/permissions yolo` turns them off again. The current mode is visible in the TUI. Account-dependent requests may consume paid credits; Automatic fallbacks are restricted to the free-model pool described below. Credential exclusions, file hash checks, plan mode, provider pricing checks, and unknown-outcome recovery remain enforced. Login and genuinely missing task information can still require input.
 
 **Automatic model chaining is on by default.** Connect OpenCode, Kilo (API or CLI), or OpenRouter and describe your task. Robinhood discovers their eligible free models, uses the last working model first, and switches on quota, capacity, or authentication errors. All models share the task journal and completed tool receipts. Use `/chain` for status or `/chain off` for a single explicitly selected model. [Routing behavior and limits](docs/ROUTING.md).
