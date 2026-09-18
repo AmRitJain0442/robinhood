@@ -7,6 +7,7 @@ import { promptForProvider } from './prompt.js';
 import { approvalInstructions, type ApprovalMode } from './approvals.js';
 
 export interface Interaction {
+  routeChanged?(route: Route): void;
   readonly approvalMode?: ApprovalMode;
   text(text: string): void;
   status(text: string): void;
@@ -35,6 +36,7 @@ export class Runner {
     for (let step = 0; step < 100; step++) {
       signal.throwIfAborted();
       const route = routes[index]!;
+      ui.routeChanged?.(route);
       const promptProfile = promptForProvider(route.provider);
       let partial = '';
       let completion;

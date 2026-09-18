@@ -28,10 +28,13 @@ import { readWorkflow, runWorkflow } from './workflow.js';
 import { prepareTool } from './tools.js';
 import { Approvals, approvalInstructions } from './approvals.js';
 import { RoutePool, automaticProviders } from './routing.js';
+import { usageSummary } from './usage.js';
+import { startGui } from './gui.js';
 
 const help = `Robinhood 0.0.1 / developer preview
 
   robinhood                           Open in the current project directory
+  robinhood gui                       Open the local browser interface
   robinhood --workspace <directory>    Open a specific project
   robinhood demo                      Offline handoff demonstration
   robinhood login gemini-cli           Sign in with Google in the native CLI
@@ -53,6 +56,8 @@ In the terminal:
   /prompt                 Inspect the active system prompt and fingerprint
   /permissions yolo|ask   Change permission prompts for this process
   /chain [on|off]         Inspect automatic free-model routing or toggle it
+  /gui                    Open the GUI alongside this terminal
+  /usage                  Cumulative observed tokens and provider usage
   /plan on|off            Toggle read-only planning for this session
   /todos                  Inspect the durable task checklist
   /goal TEXT              Set an explicit goal; /goal shows its status
@@ -92,6 +97,8 @@ Commands have your OS privileges. Plan mode and recovery checks still apply.
 Ctrl+C cancels an active turn; Ctrl+C at the prompt exits. No telemetry.`;
 
 async function main(): Promise<void> {
+  const guiMode = process.argv[2] === 'gui';
+  if (guiMode) process.argv.splice(2, 1);
   if (process.argv[2] === 'login') {
     if (process.argv.length !== 4 || !['gemini-cli', 'copilot-cli'].includes(process.argv[3]!)) throw new Error('Use: robinhood login gemini-cli OR robinhood login copilot-cli');
     if (process.argv[3] === 'gemini-cli') await loginGemini(); else await loginCopilot();
@@ -102,11 +109,12 @@ async function main(): Promise<void> {
   if (values.yolo && values.ask) throw new Error('Choose --yolo or --ask, not both.');
   if (values.help) { console.log(help); return; }
   if (values.version) { console.log('0.0.1'); return; }
-  if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error('An interactive terminal is required. Run npm run demo for an account-free check.');
+  if (!guiMode && (!process.stdin.isTTY || !process.stdout.isTTY)) throw new Error('An interactive terminal is required. Use robinhood gui for the browser interface.');
   const workspace = await realpath(path.resolve(values.workspace ?? process.cwd()));
   const secrets = new Secrets();
   const store = new Store(path.join(path.resolve(values['data-dir'] ?? dataPath()), 'sessions.db'));
-  const terminal = new Terminal(secrets);
+  const terminal = new Terminal(secrets, guiMode);
+  let gui: Awaited<ReturnType<typeof startGui>> | undefined;
   let current: Session | undefined;
   const connections = new Map<string, Connector>();
   let selectedProvider = 'openrouter';
@@ -124,6 +132,7 @@ async function main(): Promise<void> {
   terminal.rl.on('SIGINT', interrupt);
   process.on('SIGINT', interrupt);
   const ui: Interaction = {
+    routeChanged: route => { terminal.setRoute(route.id); const usage = usageSummary(store).total; terminal.setUsage(usage.input + usage.output, usage.requests); },
     get approvalMode() { return approvals.mode; },
     text: text => terminal.text(text), status: text => terminal.line(text),
     question: (question, signal) => terminal.question(question, signal),
@@ -137,6 +146,17 @@ async function main(): Promise<void> {
     terminal.line(`Resumed ${session.id}\nObjective: ${session.objective}`);
   };
   const required = (): Session => { if (!current) throw new Error('Start a task or /resume a saved session first.'); return current; };
+  const openGui = async () => {
+    gui ??= await startGui(terminal, () => JSON.parse(secrets.redact(JSON.stringify({
+      usage: usageSummary(store), workspaceUsage: usageSummary(store, workspace),
+      providers: providers.map(entry => ({ id: entry.id, name: entry.name, connected: connections.has(entry.id), access: entry.access, automatic: automaticProviders.has(entry.id), method: process.env[entry.env] !== undefined ? 'Environment' : entry.bridge ? 'CLI bridge' : entry.anonymous ? 'API / anonymous' : 'Saved or current credential' })),
+      sessions: store.list().filter(session => session.workspace === workspace).slice(0, 100),
+      operations: current ? store.operations(current.id).slice(-30) : [], chain: pool.enabled,
+    }))));
+    if (guiMode) console.log(`Robinhood GUI: ${gui.url}\nKeep this process running. Ctrl+C exits.`);
+    else terminal.line(`Local GUI: ${gui.url}`);
+    await openBrowser(gui.url).catch(() => {});
+  };
   const prepareRoutes = async (signal: AbortSignal) => {
     routes = await pool.discover(connections, explicitRoute, current ? store.get(current.id).route : null, signal, text => terminal.line(secrets.redact(text)));
     if (!routes.length) throw new Error('No available routes. Connect OpenCode, Kilo, or OpenRouter, select an account model explicitly, or retry after cooldown.');
@@ -148,6 +168,7 @@ async function main(): Promise<void> {
     finally { active = undefined; }
   };
   try {
+    if (guiMode) await openGui();
     terminal.line(approvals.mode === 'yolo' ? 'YOLO enabled: no permission prompts. Selected-account requests may consume credits. /permissions ask enables confirmations.' : 'ASK mode: permission prompts enabled.');
     terminal.line(`Your workspace. Your accounts.\n${workspace}\n\n/connect   Link an account or start without login\n/models    Search models across a connected provider\n/help      Commands, memory and approvals`);
     try { vault = await systemVault(); } catch { terminal.line('OS credential vault unavailable. Connections will last for this process only.'); }
@@ -165,7 +186,8 @@ async function main(): Promise<void> {
     if (values.session) load(values.session);
     while (true) {
       const todos = current ? store.state<Todo[]>(current.id, 'todos', []) : [];
-      terminal.setContext({ workspace, route: (current ? store.get(current.id).route : null) ?? routes[0]?.id ?? 'Automatic free-model chain', accounts: connections.size, session: current?.id ?? 'New task', mode: (current && store.state(current.id, 'plan-mode', false) ? 'PLAN · ' : '') + approvals.mode.toUpperCase(), tasks: todos.length ? `${todos.filter(todo => todo.status === 'completed').length}/${todos.length} tasks` : 'No checklist', workers: current ? capabilities.jobs.list(store, current).filter(job => job.status === 'running').length + capabilities.terminals.list(store, current).filter(terminal => terminal.status === 'running').length : 0 });
+      const totals = usageSummary(store).total;
+      terminal.setContext({ tokens: totals.input + totals.output, requests: totals.requests, workspace, route: (current ? store.get(current.id).route : null) ?? routes[0]?.id ?? 'Automatic free-model chain', accounts: connections.size, session: current?.id ?? 'New task', mode: (current && store.state(current.id, 'plan-mode', false) ? 'PLAN · ' : '') + approvals.mode.toUpperCase(), tasks: todos.length ? `${todos.filter(todo => todo.status === 'completed').length}/${todos.length} tasks` : 'No checklist', workers: current ? capabilities.jobs.list(store, current).filter(job => job.status === 'running').length + capabilities.terminals.list(store, current).filter(terminal => terminal.status === 'running').length : 0 });
       let input: string;
       try { input = (await terminal.question('\nYou > ')).trim(); } catch { break; }
       if (!input) continue;
@@ -174,6 +196,8 @@ async function main(): Promise<void> {
         const argument = pieces.join(' ');
         if (command === '/quit' || command === '/exit') break;
         if (command === '/help') { terminal.line(help); continue; }
+        if (command === '/gui') { await openGui(); continue; }
+        if (command === '/usage') { terminal.line(JSON.stringify(usageSummary(store), null, 2)); continue; }
         if (command === '/connect' || command === '/accounts') {
           const id = argument || await terminal.select('Link an account - type to search', [...providers].sort((a, b) => accountPriority(a.id) - accountPriority(b.id)).map(entry => ({ value: entry.id, label: entry.name, detail: `${connections.has(entry.id) ? 'connected / ' : ''}${entry.bridge ? (entry.bridge.login ? 'native account login' : 'CLI free-model bridge') : ['openrouter', 'puter'].includes(entry.id) ? 'browser sign-in' : entry.anonymous ? 'anonymous access available' : 'one-time API credential'}` })));
           const entry = providerDefinition(id);
@@ -435,6 +459,7 @@ async function main(): Promise<void> {
     await capabilities.close().catch(error => terminal.line(`Runtime cleanup needs inspection: ${String(error)}`));
     await Promise.allSettled([...connections.values()].map(connection => connection.close?.()));
     terminal.close();
+    await gui?.close();
     store.close();
   }
 }
