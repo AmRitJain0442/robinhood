@@ -11,6 +11,8 @@ Both accept `--workspace PATH`, `--data-dir PATH`, `--session ID`, and `--ask`. 
 
 From an existing terminal, use `/gui` to open the browser on **that same live session**. Inputs in either interface answer the current shared prompt. Stale browser submissions are rejected. Do not launch two independent processes against the same database; its existing ownership lock prevents that.
 
+`/gui` belongs inside Robinhood, not PowerShell. In PowerShell, run `robinhood gui`. If Robinhood is already running, use its `/gui` command or reopen its printed browser URL; `/quit` releases the database before a fresh launch. Ownership checks include the process start identity so a recycled process ID after a crash does not falsely keep the database locked. If process identity cannot be verified, Robinhood retains the lock.
+
 ## GUI views
 
 - **Workspace:** live conversation, task input, stop button, provider/model pickers, active route, permission mode, and recent tool receipts. Browser prompts also handle approvals and credentials without echoing the credential into the conversation.

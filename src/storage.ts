@@ -2,11 +2,12 @@ import Database from 'better-sqlite3';
 import { chmodSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { ownerIsAlive, ownerToken } from './process-owner.js';
 import type { Message, Operation, Session, Usage } from './types.js';
 
 export class Store {
   private readonly db: Database.Database;
-  private readonly owner = randomUUID();
+  private readonly owner = ownerToken(randomUUID());
   private closed = false;
 
   constructor(filename: string) {
@@ -40,13 +41,9 @@ export class Store {
       `);
       // Serialize ownership acquisition with SQLite, including recovery from a dead process.
       this.db.transaction(() => {
-        const previous = this.db.prepare('SELECT * FROM owner WHERE id=1').get() as { pid: number } | undefined;
+        const previous = this.db.prepare('SELECT * FROM owner WHERE id=1').get() as { pid: number; token: string } | undefined;
         if (previous) {
-          let alive = true;
-          try { process.kill(previous.pid, 0); } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === 'ESRCH') alive = false;
-          }
-          if (alive) throw new Error(`Robinhood data is already open in process ${previous.pid}. Close that process first.`);
+          if (ownerIsAlive(previous)) throw new Error(`Robinhood data is already open in process ${previous.pid}. Use /gui inside that Robinhood terminal, reopen its printed GUI URL, or exit it with /quit before launching again.`);
         }
         this.db.prepare('INSERT OR REPLACE INTO owner VALUES (1, ?, ?)').run(this.owner, process.pid);
         this.db.prepare("UPDATE operations SET state='unknown' WHERE state='running'").run();
