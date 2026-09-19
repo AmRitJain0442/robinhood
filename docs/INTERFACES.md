@@ -29,9 +29,13 @@ Separate tasks in the same repository still edit the same files. Use separate Gi
 - **Usage & tokens:** cumulative reported input/output tokens, request and failure counts, model breakdown, recent daily totals in UTC, workspace/all-workspace filtering, and JSON export.
 - **Accounts:** search providers, filter connected accounts or automatic free-route providers, connect/disconnect, select models, and inspect recorded provider usage. Each provider currently has one linked profile. Robinhood does not infer an account email or organization from an API key.
 - **Task history:** search and resume the latest 100 saved tasks for the current workspace.
-- **Settings:** Forest/Paper themes, comfortable/compact density, task inspector visibility, YOLO/ask permissions, automatic routing, and plan mode. Display preferences are stored in the browser for that local address.
+- **Settings:** Phosphor/Paper themes, comfortable/compact density, task inspector visibility, YOLO/ask permissions, automatic routing, and plan mode. Display preferences are stored in the browser for that local address.
 
 Ctrl+Enter sends a browser message. Account and model choices are searchable. Close the tab to leave the engine running; `/quit` exits it. Native Google/GitHub CLI sign-in still uses its existing terminal login command when needed.
+
+The GUI uses a compact terminal layout that fills the viewport. The workspace keeps its command box and controls visible; transcripts, model choices, and long data views scroll inside their own panes. **Latest** jumps to the end of the transcript. Output follows automatically when you are already at the bottom, and preserves your position when reading earlier lines.
+
+**Focus** (Alt+Enter) hides workspace metrics and the inspector to give the transcript more space; Escape restores them. Alt+1 through Alt+5 switch views, Alt+/ focuses the command box, and Ctrl+Enter sends. On narrower screens, model and connection controls remain in the workspace toolbar.
 
 ## Terminal improvements
 

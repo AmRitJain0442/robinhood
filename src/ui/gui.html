@@ -7,17 +7,17 @@
     <style nonce="__NONCE__">
       :root {
         color-scheme: dark;
-        --bg: #111713;
-        --panel: #18201b;
-        --raised: #202a23;
-        --line: #334237;
-        --ink: #eff3e8;
-        --muted: #a2b09f;
-        --accent: #c1ed82;
+        --bg: #070b09;
+        --panel: #0b120e;
+        --raised: #111e16;
+        --line: #244231;
+        --ink: #d3e9db;
+        --muted: #86a792;
+        --accent: #79ffa8;
         --accent-ink: #14220d;
         --gold: #e6ba77;
         --red: #ffaaa0;
-        --space: 24px;
+        --space: 16px;
       }
       * {
         box-sizing: border-box;
@@ -27,9 +27,9 @@
         background: var(--bg);
         color: var(--ink);
         font:
-          15px/1.5 "Bahnschrift",
-          "Trebuchet MS",
-          sans-serif;
+          13px/1.5 "Cascadia Code",
+          "Consolas",
+          monospace;
       }
       body.light {
         color-scheme: light;
@@ -58,7 +58,7 @@
         border: 1px solid var(--line);
         background: transparent;
         color: var(--ink);
-        border-radius: 7px;
+        border-radius: 2px;
         padding: 9px 14px;
         transition:
           background 0.15s,
@@ -239,7 +239,7 @@
         margin-bottom: 9px;
       }
       h1 {
-        font-family: Georgia, serif;
+        font-family: "Cascadia Code", "Consolas", monospace;
         font-weight: 400;
         font-size: 39px;
         line-height: 1.15;
@@ -263,7 +263,7 @@
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         border: 1px solid var(--line);
-        border-radius: 9px;
+        border-radius: 2px;
         overflow: hidden;
         margin-bottom: 24px;
       }
@@ -303,7 +303,7 @@
       }
       .card {
         border: 1px solid var(--line);
-        border-radius: 9px;
+        border-radius: 2px;
         background: var(--panel);
         padding: var(--space);
         min-width: 0;
@@ -373,7 +373,7 @@
       input,
       select {
         border: 1px solid var(--line);
-        border-radius: 6px;
+        border-radius: 2px;
         background: var(--bg);
         color: var(--ink);
         padding: 10px;
@@ -606,18 +606,243 @@
       body.no-inspector #inspector {
         display: none;
       }
-      @media (min-width: 1600px) {
-        .main {
-          padding-left: 60px;
-          padding-right: 60px;
-        }
-        .feed {
-          height: 48vh;
-        }
+      /* The application owns the viewport; only content panes scroll. */
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+      }
+      .shell {
+        height: 100dvh;
+        min-height: 0;
+        grid-template-columns: 178px minmax(0, 1fr);
+      }
+      aside {
+        height: 100%;
+        min-height: 0;
+        position: static;
+        padding: 20px 10px;
+        overflow: auto;
+      }
+      .brand {
+        font-size: 15px;
+        letter-spacing: 1px;
+        padding: 0 6px;
+      }
+      .brand span {
+        font-size: 21px;
+      }
+      .edition {
+        font-size: 8px;
+        padding: 8px 6px 25px;
+        letter-spacing: 1px;
+      }
+      .nav button {
+        padding: 10px 8px;
+        font-size: 11px;
+      }
+      .nav small {
+        width: 23px;
+      }
+      .sidebar-bottom {
+        padding: 14px 6px;
+        font-size: 10px;
+      }
+      .main {
+        padding: 0 16px 12px;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .topbar {
+        min-height: 42px;
+        flex-shrink: 0;
+      }
+      .page {
+        min-height: 0;
+        overflow: auto;
+        scrollbar-gutter: stable;
+      }
+      .page.active {
+        flex: 1;
+      }
+      .heading {
+        margin: 18px 0;
+        align-items: center;
+        gap: 12px;
+      }
+      h1 {
+        font-size: 26px;
+        letter-spacing: -1px;
+      }
+      button {
+        padding: 6px 10px;
+      }
+      .eyebrow {
+        font-size: 9px;
+        margin-bottom: 4px;
+      }
+      .cursor {
+        color: var(--accent);
+        margin-left: 5px;
+      }
+      #page-workspace.active {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        scrollbar-gutter: auto;
+      }
+      #page-workspace > .heading {
+        margin: 12px 0;
+        flex-shrink: 0;
+      }
+      #page-workspace h1 {
+        font-size: 19px;
+      }
+      #page-workspace > .heading .actions {
+        gap: 5px;
+      }
+      #workspace-metrics {
+        flex-shrink: 0;
+        margin-bottom: 12px;
+      }
+      #workspace-metrics .metric {
+        padding: 8px 12px;
+      }
+      #workspace-metrics .number {
+        font-size: 19px;
+        margin: 2px 0;
+      }
+      #workspace-metrics .metric-note {
+        font-size: 10px;
+      }
+      #workspace-metrics .metric-label {
+        font-size: 9px;
+        letter-spacing: 1px;
+      }
+      .workgrid {
+        flex: 1;
+        min-height: 0;
+        grid-template-columns: minmax(0, 1fr) 244px;
+        gap: 12px;
+      }
+      .chat {
+        min-height: 0;
+        overflow: hidden;
+        border-top: 2px solid var(--accent);
+      }
+      .card-head {
+        flex-shrink: 0;
+        padding: 8px 12px;
+        font-size: 11px;
+        min-width: 0;
+      }
+      .card-head > b {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .card-head .actions {
+        align-items: center;
+        flex-wrap: nowrap;
+        flex-shrink: 0;
+      }
+      #latest {
+        font-size: 10px;
+        color: var(--accent);
+        padding: 2px 7px;
+      }
+      .feed {
+        flex: 1;
+        height: auto;
+        min-height: 0;
+        padding: 12px 14px;
+        font-size: 12px;
+        line-height: 1.6;
+        overscroll-behavior: contain;
+      }
+      .feed .label {
+        margin-top: 14px;
+      }
+      .composer {
+        flex-shrink: 0;
+        max-height: 65%;
+        min-height: 0;
+        padding: 10px 12px;
+        border-radius: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .composer label {
+        margin-bottom: 5px;
+        max-height: 48px;
+        overflow: auto;
+        flex-shrink: 0;
+      }
+      textarea {
+        resize: none;
+        min-height: 46px;
+        height: 54px;
+        max-height: 90px;
+        padding: 7px 9px;
+        flex-shrink: 0;
+      }
+      .compose-foot {
+        margin-top: 7px;
+        flex-shrink: 0;
+      }
+      .options {
+        min-height: 0;
+        max-height: 24dvh;
+        margin: 8px 0;
+        overscroll-behavior: contain;
+      }
+      #inspector {
+        min-height: 0;
+        overflow: auto;
+        gap: 10px;
+        scrollbar-width: thin;
+      }
+      #inspector .card {
+        padding: 12px;
+        flex-shrink: 0;
+      }
+      #inspector .route {
+        margin: 7px 0 10px;
+      }
+      #inspector .kv {
+        padding: 6px 0;
+        font-size: 11px;
+      }
+      #inspector .gap-top {
+        margin-top: 10px;
+      }
+      #inspector h2 {
+        font-size: 12px;
+        margin-bottom: 8px;
+      }
+      #inspector .activity-card {
+        flex: 1;
+        min-height: 80px;
+        overflow: auto;
+      }
+      #inspector .memory-card .note {
+        display: none;
+      }
+      body.focus-mode .workgrid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      body.focus-mode #inspector,
+      body.focus-mode #workspace-metrics {
+        display: none;
+      }
+      #focus-mode[aria-pressed="true"] {
+        color: var(--accent);
+        border-color: var(--accent);
       }
       @media (max-width: 1150px) {
         .workgrid {
-          grid-template-columns: 1fr;
+          grid-template-columns: minmax(0, 1fr);
         }
         #inspector {
           display: none;
@@ -625,80 +850,160 @@
         .account-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
-        .main {
-          padding: 0 22px 24px;
-        }
         .shell {
-          grid-template-columns: 190px 1fr;
+          grid-template-columns: 156px minmax(0, 1fr);
         }
       }
       @media (max-width: 760px) {
         .shell {
-          display: block;
+          grid-template-columns: minmax(0, 1fr);
+          grid-template-rows: auto minmax(0, 1fr);
         }
         aside {
           height: auto;
-          position: static;
-          padding: 16px;
+          padding: 8px 10px;
           border-right: 0;
           border-bottom: 1px solid var(--line);
+          overflow: hidden;
         }
+        .brand,
         .edition,
         .sidebar-bottom {
           display: none;
         }
         .nav {
           flex-direction: row;
-          overflow: auto;
-          margin-top: 15px;
+          gap: 2px;
+          justify-content: space-between;
         }
         .nav button {
+          padding: 8px 5px;
+          font-size: 10px;
           white-space: nowrap;
-          padding: 9px;
         }
         .nav small {
           display: none;
         }
-        .brand {
-          font-size: 16px;
-        }
         .main {
-          padding: 0 15px 20px;
+          padding: 0 8px 8px;
         }
         .topbar {
-          min-height: 58px;
+          min-height: 34px;
+          gap: 8px;
         }
-        .heading {
-          margin-top: 23px;
+        .path {
+          font-size: 10px;
         }
-        h1 {
-          font-size: 31px;
-        }
-        .metrics {
-          grid-template-columns: 1fr 1fr;
-        }
-        .metric {
-          padding: 13px;
-          border-bottom: 1px solid var(--line);
-        }
-        .number {
-          font-size: 23px;
-        }
-        .section-grid,
-        .account-grid {
-          grid-template-columns: 1fr;
-        }
-        .feed {
-          height: 320px;
+        .chip {
+          padding: 2px 5px;
+          font-size: 9px;
         }
         .chips .chip:first-child {
           display: none;
         }
-        .heading > .actions {
+        #page-workspace > .heading {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 6px;
+          margin: 8px 0;
+        }
+        #page-workspace .heading .eyebrow {
           display: none;
+        }
+        #page-workspace h1 {
+          font-size: 15px;
+        }
+        #page-workspace .heading .actions {
+          width: 100%;
+        }
+        #page-workspace .heading .actions button {
+          font-size: 10px;
+          padding: 5px 7px;
+        }
+        #workspace-metrics {
+          margin-bottom: 8px;
+        }
+        #workspace-metrics .metric {
+          padding: 6px;
+        }
+        #workspace-metrics .metric-label {
+          font-size: 8px;
+          letter-spacing: 0;
+        }
+        #workspace-metrics .number {
+          font-size: 13px;
+          letter-spacing: -0.5px;
+        }
+        #workspace-metrics .metric-note {
+          display: none;
+        }
+        .card-head {
+          padding: 6px 9px;
+        }
+        .card-head span {
+          font-size: 10px;
+        }
+        .feed {
+          padding: 9px;
+          font-size: 11px;
+        }
+        .composer {
+          padding: 8px;
         }
         .compose-foot > span {
           display: none;
+        }
+        .compose-foot {
+          justify-content: flex-end;
+        }
+        .section-grid,
+        .account-grid {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .metrics:not(#workspace-metrics) {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (max-height: 650px) {
+        #workspace-metrics .metric-note,
+        #page-workspace .heading .eyebrow {
+          display: none;
+        }
+        #workspace-metrics .metric {
+          padding-top: 5px;
+          padding-bottom: 5px;
+        }
+        #page-workspace > .heading {
+          margin: 6px 0;
+        }
+        #inspector .memory-card {
+          display: none;
+        }
+        .composer {
+          padding-top: 6px;
+          padding-bottom: 6px;
+        }
+      }
+      @media (max-height: 450px) {
+        #workspace-metrics {
+          display: none;
+        }
+        #page-workspace > .heading > div:first-child {
+          display: none;
+        }
+        #page-workspace > .heading {
+          margin: 4px 0;
+        }
+        .composer textarea {
+          height: 36px;
+          min-height: 36px;
+        }
+        .composer label {
+          font-size: 10px;
+          max-height: 30px;
+        }
+        .composer {
+          max-height: 70%;
         }
       }
       @media (prefers-reduced-motion: reduce) {
@@ -713,7 +1018,7 @@
     <div class="shell">
       <aside>
         <div class="brand"><span>↗</span> ROBINHOOD</div>
-        <div class="edition">YOUR MODELS. ONE HOME.</div>
+        <div class="edition">LOCAL AGENT // CONTROL ROOM</div>
         <nav class="nav" aria-label="Main navigation">
           <button class="active" data-page="workspace">
             <small>01</small> Workspace</button
@@ -740,14 +1045,22 @@
         <section class="page active" id="page-workspace">
           <div class="heading">
             <div>
-              <div class="eyebrow">The workbench</div>
-              <h1>Keep the task. Switch the model.</h1>
-              <p>
-                A single conversation, carried across your models. Pick up
-                exactly where you left off.
-              </p>
+              <div class="eyebrow">SYSTEM / WORKSPACE</div>
+              <h1>
+                Command center<span class="cursor" aria-hidden="true">_</span>
+              </h1>
             </div>
             <div class="actions">
+              <button
+                id="focus-mode"
+                type="button"
+                aria-pressed="false"
+                title="Focus mode (Alt+Enter)"
+              >
+                [ ] Focus
+              </button>
+              <button data-command="/models">Model</button>
+              <button data-command="/connect">Connect</button>
               <button data-command="/new">＋ New task</button
               ><button data-command="/continue">Continue →</button>
             </div>
@@ -756,8 +1069,16 @@
           <div class="workgrid">
             <section class="card chat" aria-label="Conversation">
               <div class="card-head">
-                <b id="conversation-title">Current conversation</b
-                ><span id="activity" class="live">Ready</span>
+                <b id="conversation-title">Current conversation</b>
+                <div class="actions">
+                  <button
+                    id="latest"
+                    type="button"
+                    title="Jump to latest output"
+                  >
+                    Latest</button
+                  ><span id="activity" class="live" role="status">Ready</span>
+                </div>
               </div>
               <div
                 class="feed"
@@ -809,7 +1130,7 @@
                   ><button data-command="/connect">Connect</button>
                 </div>
               </section>
-              <section class="card">
+              <section class="card activity-card">
                 <h2>Task activity</h2>
                 <div id="receipts">
                   <p class="note">
@@ -817,7 +1138,7 @@
                   </p>
                 </div>
               </section>
-              <section class="card">
+              <section class="card memory-card">
                 <div class="eyebrow">Carry the context</div>
                 <p class="note">
                   Your conversation and completed tool receipts stay with the
@@ -952,10 +1273,10 @@
               <div class="setting">
                 <div>
                   Color theme
-                  <p>Forest dark or paper light.</p>
+                  <p>Phosphor terminal or paper light.</p>
                 </div>
                 <select id="theme" aria-label="Color theme">
-                  <option value="dark">Forest</option>
+                  <option value="dark">Phosphor</option>
                   <option value="light">Paper</option>
                 </select>
               </div>
@@ -1091,6 +1412,40 @@
       function idle() {
         return state?.terminal.prompt?.label === "You >";
       }
+      function focusMode(enabled) {
+        document.body.classList.toggle("focus-mode", enabled);
+        $("focus-mode").setAttribute("aria-pressed", String(enabled));
+        $("focus-mode").textContent = enabled ? "[x] Focus" : "[ ] Focus";
+      }
+      $("focus-mode").onclick = () =>
+        focusMode(!document.body.classList.contains("focus-mode"));
+      $("latest").onclick = () => {
+        $("feed").scrollTop = $("feed").scrollHeight;
+      };
+      document.addEventListener("keydown", (event) => {
+        if (event.altKey && !event.ctrlKey && !event.metaKey) {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            page("workspace");
+            focusMode(!document.body.classList.contains("focus-mode"));
+          } else if (/^[1-5]$/.test(event.key)) {
+            event.preventDefault();
+            page(
+              ["workspace", "usage", "accounts", "sessions", "settings"][
+                Number(event.key) - 1
+              ],
+            );
+          } else if (event.key === "/") {
+            event.preventDefault();
+            page("workspace");
+            (state?.terminal.prompt?.hidden
+              ? $("secret")
+              : $("message")
+            ).focus();
+          }
+        }
+        if (event.key === "Escape") focusMode(false);
+      });
       async function send(value) {
         if (!state?.terminal.prompt)
           throw Error(
