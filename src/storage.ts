@@ -14,7 +14,7 @@ export class Store {
     mkdirSync(path.dirname(filename), { recursive: true, mode: 0o700 });
     this.db = new Database(filename);
     try {
-      if (Number(this.db.pragma('user_version', { simple: true })) > 1) throw new Error('This database needs a newer Robinhood version.');
+      if (Number(this.db.pragma('user_version', { simple: true })) > 2) throw new Error('This database needs a newer Robinhood version.');
       this.db.pragma('journal_mode = WAL');
       this.db.pragma('synchronous = FULL');
       this.db.pragma('foreign_keys = ON');
@@ -37,26 +37,59 @@ export class Store {
           kind TEXT NOT NULL, body TEXT NOT NULL, created_at TEXT NOT NULL
         );
         CREATE UNIQUE INDEX IF NOT EXISTS operation_call ON operations(session_id, call_id);
-        PRAGMA user_version = 1;
+        CREATE TABLE IF NOT EXISTS session_owners (
+          session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+          token TEXT NOT NULL, pid INTEGER NOT NULL
+        );
       `);
-      // Serialize ownership acquisition with SQLite, including recovery from a dead process.
+      // Old binaries use a database-wide lock. Never migrate underneath one.
       this.db.transaction(() => {
         const previous = this.db.prepare('SELECT * FROM owner WHERE id=1').get() as { pid: number; token: string } | undefined;
         if (previous) {
-          if (ownerIsAlive(previous)) throw new Error(`Robinhood data is already open in process ${previous.pid}. Use /gui inside that Robinhood terminal, reopen its printed GUI URL, or exit it with /quit before launching again.`);
+          if (ownerIsAlive(previous)) throw new Error(`An older Robinhood process (${previous.pid}) is using this database. Exit it with /quit and relaunch once to enable simultaneous sessions.`);
         }
-        this.db.prepare('INSERT OR REPLACE INTO owner VALUES (1, ?, ?)').run(this.owner, process.pid);
-        this.db.prepare("UPDATE operations SET state='unknown' WHERE state='running'").run();
-        const prepared = this.db.prepare("SELECT * FROM operations WHERE state='prepared'").all() as Operation[];
-        for (const op of prepared) this.finish(op.id, 'failed', 'Interrupted before execution. No action was launched.');
+        this.db.prepare('DELETE FROM owner').run();
+        this.db.pragma('user_version = 2');
+        const owners = this.db.prepare('SELECT * FROM session_owners').all() as { session_id: string; token: string; pid: number }[];
+        for (const previous of owners) {
+          if (!ownerIsAlive(previous)) this.db.prepare('DELETE FROM session_owners WHERE session_id=?').run(previous.session_id);
+        }
+        const interrupted = this.db.prepare("SELECT DISTINCT session_id FROM operations WHERE state IN ('running', 'prepared') AND session_id NOT IN (SELECT session_id FROM session_owners)").all() as { session_id: string }[];
+        for (const { session_id } of interrupted) {
+          this.claim(session_id);
+          this.db.prepare('DELETE FROM session_owners WHERE session_id=? AND token=?').run(session_id, this.owner);
+        }
       }).immediate();
       if (process.platform !== 'win32') chmodSync(filename, 0o600);
     } catch (error) { this.db.close(); throw error; }
   }
 
+  // Claims last until process shutdown, including when switching tasks: that
+  // process may still have background jobs or persistent shells for the task.
+  claim(id: string): void {
+    this.db.transaction(() => {
+      const previous = this.db.prepare('SELECT * FROM session_owners WHERE session_id=?').get(id) as { token: string; pid: number } | undefined;
+      if (previous?.token === this.owner) return;
+      if (previous && ownerIsAlive(previous)) throw new Error(`Session ${id} is already open in process ${previous.pid}. Start a new task, or use that process to continue this session.`);
+      this.db.prepare('INSERT OR REPLACE INTO session_owners VALUES (?, ?, ?)').run(id, this.owner, process.pid);
+      this.db.prepare("UPDATE operations SET state='unknown' WHERE session_id=? AND state='running'").run(id);
+      const prepared = this.db.prepare("SELECT * FROM operations WHERE session_id=? AND state='prepared'").all(id) as Operation[];
+      for (const op of prepared) this.finish(op.id, 'failed', 'Interrupted before execution. No action was launched.');
+    }).immediate();
+  }
+
+  private claimOperation(id: string): void {
+    const op = this.db.prepare('SELECT session_id FROM operations WHERE id=?').get(id) as { session_id: string } | undefined;
+    if (!op) throw new Error('Operation already settled or missing.');
+    this.claim(op.session_id);
+  }
+
   create(workspace: string, identity: string, objective: string): Session {
     const session: Session = { id: randomUUID(), workspace, identity, objective, route: null, created_at: new Date().toISOString() };
-    this.db.prepare('INSERT INTO sessions VALUES (@id, @workspace, @identity, @objective, @route, @created_at)').run(session);
+    this.db.transaction(() => {
+      this.db.prepare('INSERT INTO sessions VALUES (@id, @workspace, @identity, @objective, @route, @created_at)').run(session);
+      this.claim(session.id);
+    }).immediate();
     return session;
   }
 
@@ -85,6 +118,7 @@ export class Store {
   }
 
   compact(id: string, through: number, summary: string): void {
+    this.claim(id);
     this.assertJobsSettled(id);
     if (this.operations(id).some(op => ['prepared', 'running', 'unknown'].includes(op.state))) throw new Error('Resolve pending operations before compacting.');
     if (!Number.isSafeInteger(through) || through !== this.messages(id).length || !summary.trim() || Buffer.byteLength(summary) > 32000) throw new Error('Invalid or stale context summary.');
@@ -92,6 +126,7 @@ export class Store {
   }
 
   fork(id: string, objective?: string): Session {
+    this.claim(id);
     this.assertJobsSettled(id);
     const source = this.get(id);
     const operations = this.operations(id);
@@ -110,10 +145,12 @@ export class Store {
   }
 
   append(id: string, message: Message): void {
+    this.claim(id);
     this.db.prepare('INSERT INTO messages (session_id, body) VALUES (?, ?)').run(id, JSON.stringify(message));
   }
 
   event(id: string, kind: string, body: unknown): void {
+    this.claim(id);
     this.db.prepare('INSERT INTO events (session_id, kind, body, created_at) VALUES (?, ?, ?, ?)').run(id, kind, JSON.stringify(body), new Date().toISOString());
   }
 
@@ -126,6 +163,7 @@ export class Store {
   }
 
   selectRoute(id: string, route: string): void {
+    this.claim(id);
     this.db.transaction(() => {
       this.db.prepare('UPDATE sessions SET route=? WHERE id=?').run(route, id);
       this.event(id, 'route', { route });
@@ -133,6 +171,7 @@ export class Store {
   }
 
   prepare(id: string, message: Message, usage?: Usage): Operation[] {
+    this.claim(id);
     return this.db.transaction(() => {
       const seen = new Set<string>();
       for (const call of message.tool_calls ?? []) {
@@ -152,11 +191,13 @@ export class Store {
   }
 
   running(id: string): void {
+    this.claimOperation(id);
     const result = this.db.prepare("UPDATE operations SET state='running' WHERE id=? AND state='prepared'").run(id);
     if (result.changes !== 1) throw new Error('Operation is not ready to execute.');
   }
 
   finish(id: string, state: 'completed' | 'failed', result: string): void {
+    this.claimOperation(id);
     this.db.transaction(() => {
       const op = this.db.prepare('SELECT * FROM operations WHERE id=?').get(id) as Operation | undefined;
       if (!op || op.state === 'completed' || op.state === 'failed') throw new Error('Operation already settled or missing.');
@@ -166,6 +207,7 @@ export class Store {
   }
 
   uncertain(id: string, explanation: string): void {
+    this.claimOperation(id);
     this.db.prepare("UPDATE operations SET state='unknown', result=? WHERE id=?").run(explanation, id);
   }
 
@@ -174,6 +216,7 @@ export class Store {
   }
 
   delete(id: string): void {
+    this.claim(id);
     this.assertJobsSettled(id);
     if (this.operations(id).some(op => op.state === 'unknown' || op.state === 'running')) throw new Error('Resolve uncertain operations before deleting this session.');
     this.db.prepare('DELETE FROM sessions WHERE id=?').run(id);
@@ -189,6 +232,7 @@ export class Store {
   }
 
   reconcileWorkspace(id: string, identity: string): Session {
+    this.claim(id);
     if (this.operations(id).some(op => op.state === 'unknown' || op.state === 'running')) throw new Error('Resolve uncertain operations before reconciling the workspace.');
     this.db.transaction(() => {
       this.db.prepare('UPDATE sessions SET identity=? WHERE id=?').run(identity, id);
@@ -200,7 +244,7 @@ export class Store {
 
   close(): void {
     if (this.closed) return;
-    this.db.prepare('DELETE FROM owner WHERE token=?').run(this.owner);
+    this.db.prepare('DELETE FROM session_owners WHERE token=?').run(this.owner);
     this.db.close();
     this.closed = true;
   }

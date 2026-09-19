@@ -142,6 +142,7 @@ async function main(): Promise<void> {
   const load = (id: string) => {
     const session = store.get(id);
     if (session.workspace !== workspace) throw new Error(`Session belongs to ${session.workspace}. Launch Robinhood in that workspace to resume it.`);
+    store.claim(session.id);
     current = session;
     terminal.line(`Resumed ${session.id}\nObjective: ${session.objective}`);
   };

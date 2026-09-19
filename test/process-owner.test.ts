@@ -31,7 +31,9 @@ test('recycled owner recovery preserves saved sessions and still rejects a secon
   try {
     assert.equal(recovered.get(session.id).objective, 'Keep this session');
     assert.equal(recovered.messages(session.id)[0]?.content, 'Saved memory');
-    assert.throws(() => new Store(filename), /already open/);
+    recovered.claim(session.id);
+    const second = new Store(filename);
+    try { assert.throws(() => second.claim(session.id), /already open/); } finally { second.close(); }
   } finally { recovered.close(); }
 });
 

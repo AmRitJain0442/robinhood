@@ -9,9 +9,19 @@ robinhood gui   # local browser interface
 
 Both accept `--workspace PATH`, `--data-dir PATH`, `--session ID`, and `--ask`. The browser launch prints a private localhost URL if automatic opening fails. Keep the launching process running.
 
-From an existing terminal, use `/gui` to open the browser on **that same live session**. Inputs in either interface answer the current shared prompt. Stale browser submissions are rejected. Do not launch two independent processes against the same database; its existing ownership lock prevents that.
+From an existing terminal, use `/gui` to open the browser on **that same live session**. Inputs in either interface answer the current shared prompt. Stale browser submissions are rejected.
 
-`/gui` belongs inside Robinhood, not PowerShell. In PowerShell, run `robinhood gui`. If Robinhood is already running, use its `/gui` command or reopen its printed browser URL; `/quit` releases the database before a fresh launch. Ownership checks include the process start identity so a recycled process ID after a crash does not falsely keep the database locked. If process identity cannot be verified, Robinhood retains the lock.
+`/gui` belongs inside Robinhood, not PowerShell. In PowerShell, run `robinhood gui`.
+
+## Multiple terminals and repositories
+
+Run `robinhood` or `robinhood gui` in as many terminals as needed, in the same repository or different repositories. Each process starts with a new task and each GUI gets its own browser URL. All processes share saved history, linked accounts, and cumulative recorded usage through the same default data directory. Account connections and routing remain local to each running process; credential changes are picked up on reconnect or restart.
+
+Only one process may control a particular saved task at a time. `/resume` reports which process owns a busy task; start a new task or continue in that process. Claims remain until `/quit`, including after `/new` or switching tasks, because background jobs and shells can still belong to earlier tasks. Crashed processes release their claims on the next launch or resume; only their interrupted operations become uncertain. Live tasks in other processes continue untouched.
+
+The first upgrade from the older database-wide lock requires exiting older Robinhood instances with `/quit` once. Saved history is migrated in place. Older binaries cannot reopen the upgraded database. Ownership checks include process start identity to handle recycled process IDs; unverifiable live owners remain protected.
+
+Separate tasks in the same repository still edit the same files. Use separate Git worktrees when the tasks need independent checkouts.
 
 ## GUI views
 

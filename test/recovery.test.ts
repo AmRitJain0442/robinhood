@@ -45,13 +45,14 @@ test('a real process crash after the side effect becomes unknown and blocks mode
   } finally { store.close(); }
 });
 
-test('prepared operations are cancelled on restart and a second live writer is rejected', async () => {
+test('prepared operations are cancelled on restart and a second writer cannot claim the same session', async () => {
   const directory = await workspace();
   const filename = path.join(directory, 'sessions.db');
   let store = new Store(filename);
   try {
     const session = store.create(directory, await workspaceIdentity(directory), 'Prepared only.');
-    assert.throws(() => new Store(filename), /already open/);
+    const second = new Store(filename);
+    try { assert.throws(() => second.claim(session.id), /already open/); } finally { second.close(); }
     store.prepare(session.id, { role: 'assistant', content: null, tool_calls: [{ id: 'not-started', type: 'function', function: { name: 'run_command', arguments: '{}' } }] });
     store.close();
     store = new Store(filename);
